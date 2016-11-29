@@ -1,2 +1,2 @@
-# newsqa
-Tools for accessing Maluuba's NewsQA Dataset (public version)
+# Maluuba NewsQA
+Tools for using Maluuba's news questions and answer data.
