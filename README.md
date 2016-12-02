@@ -35,6 +35,12 @@ Run
 python maluuba/newsqa/example.py
 ```
 
+## Split the Dataset
+To split the dataset into train, dev, and test, run
+```sh
+python maluuba/newsqa/split_dataset.py
+```
+
 The file to check will be printed.
 
 [cnn_stories]: http://cs.nyu.edu/~kcho/DMQA/

@@ -4,8 +4,10 @@ dataset.csv
 *-data-*.csv
 *-data-*.gz
 *-data-*.gzip
+*-data-*.tar
 *-data-*.tsv
 *-data-*.txt
+split_data
 
 # Plots
 *.svg
