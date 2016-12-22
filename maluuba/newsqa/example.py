@@ -7,7 +7,7 @@ import os
 
 try:
     # Prefer a more specific path for when you run from the root of this repo
-    # or if the root of the repo is in your path.
+    # or if the root of the repo is in your Python path.
     from maluuba.newsqa.data_processing import NewsQaDataset
 except:
     # In case you're running this file from this folder.

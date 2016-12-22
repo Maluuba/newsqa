@@ -52,23 +52,23 @@ class NewsQaDataset(object):
                 "https://datasets.maluuba.com/NewsQA/dl" % dataset_path)
 
         self._logger.info("Loading dataset from `%s`...", dataset_path)
-        self.dataset = pd.read_csv(dataset_path,
-                                   encoding='utf-8',
-                                   na_values=dict(question=[]),
-                                   keep_default_na=False)
+        # It's not really combined but it's okay because the method still works
+        # to load data with missing columns.
+        self.dataset = self.load_combined(dataset_path)
+
         remaining_story_ids = set(self.dataset['story_id'])
         self._logger.info("Loading stories from `%s`...", cnn_stories_path)
 
         with io.open(os.path.join(dirname, 'stories_requiring_extra_newline.csv'),
-                     'r', encoding='utf8') as f:
+                     'r', encoding='utf-8') as f:
             stories_requiring_extra_newline = set(f.read().split('\n'))
 
         with io.open(os.path.join(dirname, 'stories_requiring_two_extra_newlines.csv'),
-                     'r', encoding='utf8') as f:
+                     'r', encoding='utf-8') as f:
             stories_requiring_two_extra_newlines = set(f.read().split('\n'))
 
         with io.open(os.path.join(dirname, 'stories_to_decode_specially.csv'),
-                     'r', encoding='utf8') as f:
+                     'r', encoding='utf-8') as f:
             stories_to_decode_specially = set(f.read().split('\n'))
 
         story_id_to_text = {}
@@ -128,35 +128,57 @@ class NewsQaDataset(object):
                         if len(remaining_story_ids) == 0:
                             break
 
-        for index, row in tqdm.tqdm(self.dataset.iterrows(),
-                                    total=len(self.dataset),
-                                    mininterval=2, unit_scale=True, unit=" questions",
-                                    desc="Setting story texts"):
+        for row in tqdm.tqdm(self.dataset.itertuples(),
+                             total=len(self.dataset),
+                             mininterval=2, unit_scale=True, unit=" questions",
+                             desc="Setting story texts"):
             # Set story_text since we cannot include it in the dataset.
-            story_text = story_id_to_text[row['story_id']]
-            self.dataset.set_value(index, 'story_text', story_text)
+            story_text = story_id_to_text[row.story_id]
+            self.dataset.set_value(row.Index, 'story_text', story_text)
 
             # Handle endings that are too large.
-            answer_char_ranges = row['answer_char_ranges'].split('|')
+            answer_char_ranges = row.answer_char_ranges.split('|')
             updated_answer_char_ranges = []
+            ranges_updated = False
             for user_answer_char_ranges in answer_char_ranges:
                 updated_user_answer_char_ranges = []
                 for char_range in user_answer_char_ranges.split(','):
                     if char_range != 'None':
                         start, end = map(int, char_range.split(':'))
                         if end > len(story_text):
+                            ranges_updated = True
                             end = len(story_text)
-                        updated_user_answer_char_ranges.append('%d:%d' % (start, end))
+                        if start < end:
+                            updated_user_answer_char_ranges.append('%d:%d' % (start, end))
+                        else:
+                            # It's unclear why but sometimes the end is after the start.
+                            # We'll filter these out.
+                            ranges_updated = True
                     else:
                         updated_user_answer_char_ranges.append(char_range)
-                updated_user_answer_char_ranges = ','.join(updated_user_answer_char_ranges)
-                updated_answer_char_ranges.append(updated_user_answer_char_ranges)
-            updated_answer_char_ranges = '|'.join(updated_answer_char_ranges)
-            self.dataset.set_value(index, 'answer_char_ranges', updated_answer_char_ranges)
+                if updated_user_answer_char_ranges:
+                    updated_user_answer_char_ranges = ','.join(updated_user_answer_char_ranges)
+                    updated_answer_char_ranges.append(updated_user_answer_char_ranges)
+            if ranges_updated:
+                updated_answer_char_ranges = '|'.join(updated_answer_char_ranges)
+                self.dataset.set_value(row.Index, 'answer_char_ranges', updated_answer_char_ranges)
 
         # TODO Add tokenized story text and other fields from preprocessing scripts.
 
         self._logger.info("Done loading dataset.")
+
+    @staticmethod
+    def load_combined(path):
+        """
+        :param path: The path of data to load.
+        :return: A `DataFrame` containing the data from `path`.
+        :rtype: pands.DataFrame
+        """
+        return pd.read_csv(path,
+                           encoding='utf-8',
+                           dtype=dict(is_answer_absent=float),
+                           na_values=dict(question=[], story_text=[], validated_answers=[]),
+                           keep_default_na=False)
 
     def dump(self, path):
         """
@@ -164,7 +186,7 @@ class NewsQaDataset(object):
 
         :param path: The path to write the dataset to.
         """
-        logging.info("Packaging dataset to %s", path)
+        self._logger.info("Packaging dataset to %s", path)
         self.dataset.to_csv(path, index=False, encoding='utf-8')
 
     def get_vocab_len(self):
@@ -182,28 +204,28 @@ class NewsQaDataset(object):
 
     def get_answers(self, include_no_answers=False):
         answers = []
-        for index, row in self.dataset.iterrows():
+        for row in tqdm.tqdm(self.dataset.itertuples(),
+                             total=len(self.dataset),
+                             mininterval=2, unit_scale=True, unit=" questions",
+                             desc="Gathering answers"):
 
+            # Prefer validated answers.
             # If there are no validated answers, use the ones that are provided.
-            if pd.isnull(row['validated_answers']):
+            if not row.validated_answers or pd.isnull(row.validated_answers):
                 # Ignore per selection splits.
-                char_ranges = row['answer_char_ranges'].replace('|', ',').split(',')
-
+                char_ranges = row.answer_char_ranges.replace('|', ',').split(',')
             else:
-                # Prefer validated answers.
-                validated_answers_dict = json.loads(row['validated_answers'])
+                validated_answers_dict = json.loads(row.validated_answers)
                 char_ranges = []
                 for k, v in validated_answers_dict.items():
                     char_ranges += v * [k]
 
             for char_range in char_ranges:
-                if include_no_answers and char_range.lower() == "none":
+                if include_no_answers and char_range.lower() == 'none':
                     answers.append(None)
                 elif ':' in char_range:
-                    left, right = char_range.split(':')
-                    left = int(left)
-                    right = int(right)
-                    answer = row['story_text'][left:right]
+                    start, end = map(int, char_range.split(':'))
+                    answer = row.story_text[start:end]
                     answers.append(answer)
 
         return pd.Series(answers)
@@ -233,32 +255,29 @@ class NewsQaDataset(object):
             else:
                 qa_map[q] = [a]
 
-        for _, row in tqdm.tqdm(self.dataset.iterrows(),
-                                total=len(self.dataset),
-                                mininterval=2, unit_scale=True, unit='questions',
-                                desc="Gathering answers"):
+        for row in tqdm.tqdm(self.dataset.itertuples(),
+                             total=len(self.dataset),
+                             mininterval=2, unit_scale=True, unit=" questions",
+                             desc="Gathering answers"):
 
-            # If there's no validated answers, use the ones that are provided
-            if pd.isnull(row['validated_answers']):
-                char_ranges = row['answer_char_ranges'].replace('|', ',').split(',')
-
-            # But prefer validated answers
+            # Prefer validated answers.
+            # If there are no validated answers, use the ones that are provided.
+            if not row.validated_answers or pd.isnull(row.validated_answers):
+                char_ranges = row.answer_char_ranges.replace('|', ',').split(',')
             else:
-                validated_answers_dict = json.loads(row['validated_answers'])
+                validated_answers_dict = json.loads(row.validated_answers)
                 char_ranges = []
                 for k, v in validated_answers_dict.items():
                     char_ranges += v * [k]
 
             for char_range in char_ranges:
-                if include_no_answers and char_range.lower() == "none":
-                    add_q_a_pair_to_map(row['question'], "")
+                if include_no_answers and char_range.lower() == 'none':
+                    add_q_a_pair_to_map(row.question, "")
 
                 elif ':' in char_range:
-                    left, right = char_range.split(':')
-                    left = int(left)
-                    right = int(right)
-                    answer = row['story_text'][left:right]
-                    add_q_a_pair_to_map(row['question'], answer)
+                    start, end = map(int, char_range.split(':'))
+                    answer = row.story_text[start:end]
+                    add_q_a_pair_to_map(row.question, answer)
 
         return pd.DataFrame(data=list(qa_map.items()), columns=['question', 'answers'])
 
