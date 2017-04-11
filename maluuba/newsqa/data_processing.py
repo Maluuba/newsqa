@@ -168,8 +168,6 @@ class NewsQaDataset(object):
                 updated_answer_char_ranges = '|'.join(updated_answer_char_ranges)
                 self.dataset.set_value(row.Index, 'answer_char_ranges', updated_answer_char_ranges)
 
-        # TODO Add tokenized story text and other fields from preprocessing scripts.
-
         self._logger.info("Done loading dataset.")
 
     @staticmethod
@@ -179,11 +177,25 @@ class NewsQaDataset(object):
         :return: A `DataFrame` containing the data from `path`.
         :rtype: pands.DataFrame
         """
-        return pd.read_csv(path,
-                           encoding='utf-8',
-                           dtype=dict(is_answer_absent=float),
-                           na_values=dict(question=[], story_text=[], validated_answers=[]),
-                           keep_default_na=False)
+
+        logging.info("Loading data from %s", path)
+
+        result = pd.read_csv(path,
+                             encoding='utf-8',
+                             dtype=dict(is_answer_absent=float),
+                             na_values=dict(question=[], story_text=[], validated_answers=[]),
+                             keep_default_na=False)
+
+        if 'story_text' in result.keys():
+            for row in tqdm.tqdm(result.itertuples(),
+                                 total=len(result),
+                                 mininterval=2, unit_scale=True, unit=" questions",
+                                 desc="Adjusting story texts"):
+                # Correct story_text to make indices work right.
+                story_text = row.story_text.replace('\r\n', '\n')
+                result.set_value(row.Index, 'story_text', story_text)
+
+        return result
 
     def dump(self, path):
         """
