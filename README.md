@@ -26,6 +26,7 @@ The code in this repository complies with PEP8 standards with a maximum line len
 * Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder
 * Extract the dowloaded tar.gz contents into the maluuba/newsqa folder (we'll automate this step in the future)
 * Use Python 2
+* (Optional) To tokenize the data and offset the character indices, you must get some JAR files. You can get the JAR files from [here][stanford_jars]. Extract stanford-postagger-2015-12-09/stanford-postagger.jar and stanford-postagger-2015-12-09/lib/slf4j-api.jar to maluuba/newsqa
 * Run `pip install --requirement requirements.txt`
 * Run `python maluuba/newsqa/example.py --help` to see instructions
 
@@ -35,8 +36,10 @@ Run
 python maluuba/newsqa/example.py
 ```
 
+The file to check will be printed.
+
 ## Split the Dataset
-To split the dataset into train, dev, and test, run
+To split the dataset into train, dev, and test, to match the paper run
 ```sh
 python maluuba/newsqa/split_dataset.py
 ```
@@ -46,9 +49,17 @@ The file to check will be printed.
 [cnn_stories]: http://cs.nyu.edu/~kcho/DMQA/
 [maluuba_newsqa]: https://datasets.maluuba.com/NewsQA
 [maluuba_newsqa_dl]: https://datasets.maluuba.com/NewsQA/dl
+[stanford_jars]: http://nlp.stanford.edu/software/tagger.html
+
+## Tokenizing
+
+To tokenize and split the dataset into train, dev, and test, to match the paper run 
+```sh
+python maluuba/newsqa/preprocess.py
+```
 
 ## Legal
 
 Notice:  CNN articles are used here by permission from The Cable News Network (CNN).  CNN does not waive any rights of ownership in its articles and materials.  CNN is not a partner of, nor does it endorse, Maluuba or its activities.
 
-Terms: See `LICENSE.pdf`.
+Terms: See `LICENSE.txt`.

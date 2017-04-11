@@ -21,10 +21,8 @@ def strip_empty_strings(strings):
 
 
 class NewsQaDataset(object):
-    def __init__(self, cnn_stories_path=None, dataset_path=None, log_level=logging.INFO):
-        if not six.PY2:
-            raise Exception("Sorry, the loading logic only works with Python 2 for now.")
-
+    def __init__(self, cnn_stories_path=None, dataset_path=None, log_level=logging.INFO,
+                 combined_data_path=None):
         self._logger = logging.getLogger(__name__)
         if not self._logger.handlers:
             self._logger.setLevel(log_level)
@@ -34,6 +32,13 @@ class NewsQaDataset(object):
                 '[%(levelname)s] %(asctime)s - %(filename)s::%(funcName)s\n%(message)s')
             ch.setFormatter(formatter)
             self._logger.addHandler(ch)
+
+        if combined_data_path:
+            self.dataset = self.load_combined(combined_data_path)
+            return
+
+        if not six.PY2:
+            raise Exception("Sorry, the loading logic only works with Python 2 for now.")
 
         dirname = os.path.dirname(os.path.abspath(__file__))
         if cnn_stories_path is None:
