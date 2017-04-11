@@ -24,11 +24,12 @@ The code in this repository complies with PEP8 standards with a maximum line len
 
 * Download the CNN stories from [here][cnn_stories] to the maluuba/newsqa folder (for legal reasons, we can't automatically download these for you) 
 * Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder
-* Extract the dowloaded tar.gz contents into the maluuba/newsqa folder (we'll automate this step in the future)
+* Extract the dowloaded tar.gz contents into the maluuba/newsqa folder (`tar -xzvf newsqa-data-v1.tar.gz`) (we'll automate this step in the future)
 * Use Python 2
-* (Optional) To tokenize the data and offset the character indices, you must get some JAR files. You can get the JAR files from [here][stanford_jars]. Extract stanford-postagger-2015-12-09/stanford-postagger.jar and stanford-postagger-2015-12-09/lib/slf4j-api.jar to maluuba/newsqa
+* (Optional) To tokenize the data and offset the character indices, you must get some JAR files. You can get the JAR files from [here][stanford_tagger]. You just need the [English option of version 3.6.0][stanford_zip_3.6.0]. Extract stanford-postagger-2015-12-09/stanford-postagger.jar and stanford-postagger-2015-12-09/lib/slf4j-api.jar to maluuba/newsqa
 * Run `pip install --requirement requirements.txt`
 * Run `python maluuba/newsqa/example.py --help` to see instructions
+* (Testing) Make sure you do all above steps and run `python maluuba/newsqa/example.py && mv combined-newsqa-data-v1.csv maluuba/newsqa` before running tests 
 
 ## Package the Dataset
 Run
@@ -49,7 +50,8 @@ The file to check will be printed.
 [cnn_stories]: http://cs.nyu.edu/~kcho/DMQA/
 [maluuba_newsqa]: https://datasets.maluuba.com/NewsQA
 [maluuba_newsqa_dl]: https://datasets.maluuba.com/NewsQA/dl
-[stanford_jars]: http://nlp.stanford.edu/software/tagger.html
+[stanford_tagger]: http://nlp.stanford.edu/software/tagger.html
+[stanford_zip_3.6.0]: https://nlp.stanford.edu/software/stanford-postagger-2015-12-09.zip
 
 ## Tokenizing
 

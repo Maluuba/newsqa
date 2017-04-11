@@ -16,6 +16,9 @@ split_data
 *data-*.gz
 extracted_data
 
+# Downloaded Tools
+stanford-*.zip
+
 # Pre-processing files:
 *.pck
 *.tpck
