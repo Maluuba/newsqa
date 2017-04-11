@@ -57,8 +57,11 @@ The file to check will be printed.
 
 To tokenize and split the dataset into train, dev, and test, to match the paper run 
 ```sh
+python maluuba/newsqa/example.py
 python maluuba/newsqa/preprocess.py
 ```
+
+The warnings from the tokenizer are normal.
 
 ## Legal
 
