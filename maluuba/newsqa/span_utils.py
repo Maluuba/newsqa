@@ -117,9 +117,9 @@ def span_rack_from_tag_text(tagged_text, untagged_text):
 def has_overlap(span_array_1, span_array_2):
     for s1 in span_array_1:
         for s2 in span_array_2:
-            if int(s1.s) <= int(s1.s) and int(s1.e) >= int(s2.s):
+            if s1.s <= s2.s and s1.e >= s2.s:
                 return True
-            if int(s1.s) <= int(s2.e) and int(s1.e) >= int(s2.e):
+            if s1.s <= s2.e and s1.e >= s2.e:
                 return True
     return False
 
