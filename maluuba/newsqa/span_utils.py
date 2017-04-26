@@ -117,9 +117,9 @@ def span_rack_from_tag_text(tagged_text, untagged_text):
 def has_overlap(span_array_1, span_array_2):
     for s1 in span_array_1:
         for s2 in span_array_2:
-            if s1.s <= s2.s and s1.e >= s2.s:
+            if int(s1.s) <= int(s1.s) and int(s1.e) >= int(s2.s):
                 return True
-            if s1.s <= s2.e and s1.e >= s2.e:
+            if int(s1.s) <= int(s2.e) and int(s1.e) >= int(s2.e):
                 return True
     return False
 
@@ -186,11 +186,11 @@ def valid_span_rack_from_string(validated_answers, untokenized_text):
 
     while head < len(tl) and head >= 0 and (tl[head] in string.punctuation or tl[head] in string.whitespace):
         head += 1
-    while head >= 1 and tl[head - 1] in string.letters:
+    while head >= 1 and head < len(tl) and tl[head - 1] in string.letters:
         head -= 1
     while tail >= 1 and tail <= len(tl) and (tl[tail - 1] in string.punctuation or tl[tail - 1] in string.whitespace):
         tail -= 1
-    while tail < len(tl) and tl[tail] in string.letters:
+    while tail < len(tl) and tail >= 1 and tl[tail] in string.letters:
         tail += 1
     if head >= len(tl):
         head = _span.s

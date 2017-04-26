@@ -2,8 +2,10 @@
 from __future__ import print_function
 
 import argparse
-import itertools
 import os
+from split_dataset import split_data
+from tokenize_dataset import tokenize
+from simplify import simplify
 
 try:
     # Prefer a more specific path for when you run from the root of this repo
@@ -28,6 +30,7 @@ if __name__ == "__main__":
     # Dump the dataset to one file.
     newsqa_data.dump(path='combined-newsqa-data-v1.csv')
 
-    print("Some answers:")
-    for row in itertools.islice(newsqa_data.get_questions_and_answers().itertuples(), 10):
-        print(row)
+    tokenized_data_path = os.path.join(dir_name, 'newsqa-data-tokenized-v1.csv')
+    tokenize(output_path=tokenized_data_path)
+    split_data(dataset_path=tokenized_data_path)
+    simplify(output_dir_path='split_data')

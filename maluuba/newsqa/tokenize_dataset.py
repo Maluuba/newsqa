@@ -31,6 +31,7 @@ def pack(dataset, writer):
     for row in tqdm(dataset.itertuples(), total=len(dataset),
                     mininterval=2, unit_scale=True, unit=" questions",
                     desc="Packing"):
+
         writer.write(row.question)
         writer.write('\n')
         refined_valid_spans = span_utils.valid_span_rack_from_string(
@@ -58,7 +59,6 @@ def unpack(dataset, packed, output_path):
         return [next(packed).strip() for _ in six.moves.xrange(n_sents)]
 
     data = []
-
     for row in tqdm(dataset.itertuples(), total=len(dataset),
                     mininterval=2, unit_scale=True, unit=" questions",
                     desc="Unpacking"):
@@ -69,7 +69,7 @@ def unpack(dataset, packed, output_path):
         valid_tagged_text = ' '.join(valid_tagged_text_sents)
 
         valid_text_sents = [span_utils.remove_tags(s) for s in valid_tagged_text_sents]
-        story_text = u" ".join(valid_text_sents)
+        story_text = span_utils.remove_tags(valid_tagged_text)
 
         valid_span_rack = span_utils.span_rack_from_tag_text(
             [valid_tagged_text], story_text)
@@ -94,7 +94,7 @@ def unpack(dataset, packed, output_path):
 
             refined_text_sents = [
                 span_utils.remove_tags(s) for s in refined_tagged_text_sents]
-            story_text_2 = u" ".join(refined_text_sents)
+            story_text_2 = span_utils.remove_tags(refined_tagged_text)
 
             refined_span_rack = span_utils.span_rack_from_tag_text(
                 [refined_tagged_text], story_text_2)
@@ -124,13 +124,13 @@ def unpack(dataset, packed, output_path):
         # Remove validated answers since they're for character indices which are wrong now.
         del datum['validated_answers']
         del datum['Index']
+
         # FIXME Keep `answer_char_ranges` for now since splitting needs it.
         # TODO Add another flag that splitting can use to know to remove these so that it doesn't need answer_char_ranges.
 
         data.append(datum)
 
     logging.info("Writing to `%s`.", output_path)
-
     pd.DataFrame(data=data).to_csv(output_path,
                                    index=False, encoding='utf-8')
 
@@ -157,7 +157,6 @@ def tokenize(cnn_stories='cnn_stories.tgz', csv_dataset='newsqa-data-v1.csv',
     logging.info("(1/3) - Packing data to `%s`.", packed_filename)
     with io.open(packed_filename, mode='w', encoding='utf-8') as writer:
         pack(dataset, writer)
-
     logging.info("(2/3) - Tokenizing packed file to `%s`.", unpacked_filename)
     classpath = os.pathsep.join(requirements)
 
