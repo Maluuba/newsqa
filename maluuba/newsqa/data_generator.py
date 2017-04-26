@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import argparse
 import os
+
 from split_dataset import split_data
 from tokenize_dataset import tokenize
 from simplify import simplify
