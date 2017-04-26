@@ -29,5 +29,5 @@ if __name__ == "__main__":
     newsqa_data.dump(path='combined-newsqa-data-v1.csv')
 
     print("Some answers:")
-    for _, row in itertools.islice(newsqa_data.get_questions_and_answers().iterrows(), 10):
+    for row in itertools.islice(newsqa_data.get_questions_and_answers().itertuples(), 10):
         print(row)
