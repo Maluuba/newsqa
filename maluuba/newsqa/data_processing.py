@@ -8,7 +8,10 @@ import logging
 import os
 import re
 import tarfile
+from collections import Counter
+from operator import itemgetter
 
+import numpy as np
 import pandas as pd
 import six
 import tqdm
@@ -21,10 +24,8 @@ def strip_empty_strings(strings):
 
 
 class NewsQaDataset(object):
-    def __init__(self, cnn_stories_path=None, dataset_path=None, log_level=logging.INFO):
-        if not six.PY2:
-            raise Exception("Sorry, the loading logic only works with Python 2 for now.")
-
+    def __init__(self, cnn_stories_path=None, dataset_path=None, log_level=logging.INFO,
+                 combined_data_path=None):
         self._logger = logging.getLogger(__name__)
         if not self._logger.handlers:
             self._logger.setLevel(log_level)
@@ -34,6 +35,13 @@ class NewsQaDataset(object):
                 '[%(levelname)s] %(asctime)s - %(filename)s::%(funcName)s\n%(message)s')
             ch.setFormatter(formatter)
             self._logger.addHandler(ch)
+
+        if combined_data_path:
+            self.dataset = self.load_combined(combined_data_path)
+            return
+
+        if not six.PY2:
+            raise Exception("Sorry, the loading logic only works with Python 2 for now.")
 
         dirname = os.path.dirname(os.path.abspath(__file__))
         if cnn_stories_path is None:
@@ -163,8 +171,6 @@ class NewsQaDataset(object):
                 updated_answer_char_ranges = '|'.join(updated_answer_char_ranges)
                 self.dataset.set_value(row.Index, 'answer_char_ranges', updated_answer_char_ranges)
 
-        # TODO Add tokenized story text and other fields from preprocessing scripts.
-
         self._logger.info("Done loading dataset.")
 
     @staticmethod
@@ -174,11 +180,57 @@ class NewsQaDataset(object):
         :return: A `DataFrame` containing the data from `path`.
         :rtype: pands.DataFrame
         """
-        return pd.read_csv(path,
-                           encoding='utf-8',
-                           dtype=dict(is_answer_absent=float),
-                           na_values=dict(question=[], story_text=[], validated_answers=[]),
-                           keep_default_na=False)
+
+        logging.info("Loading data from %s", path)
+
+        result = pd.read_csv(path,
+                             encoding='utf-8',
+                             dtype=dict(is_answer_absent=float),
+                             na_values=dict(question=[], story_text=[], validated_answers=[]),
+                             keep_default_na=False)
+
+        if 'story_text' in result.keys():
+            for row in tqdm.tqdm(result.itertuples(),
+                                 total=len(result),
+                                 mininterval=2, unit_scale=True, unit=" questions",
+                                 desc="Adjusting story texts"):
+
+                # Correct story_text to make indices work right.
+                story_text = row.story_text.replace('\r\n', '\n\n')
+                result.set_value(row.Index, 'story_text', story_text)
+
+        return result
+
+    def export_shareable(self, path, package_path=None):
+        """
+        Export the dataset without the stories so that it can be shared.
+
+        :param path: The path to write the dataset to.
+        :param package_path: (Optional) If given, the path to write the tar.gz for the website.
+        """
+        self._logger.info("Exporting dataset to %s", path)
+        columns = list(self.dataset.columns.values)
+        columns_to_remove = [
+            'story_title',
+            'story_text',
+            'popular_answer_char_ranges',
+            'popular_answers (for humans to read)',
+        ]
+        for col in columns_to_remove:
+            try:
+                columns.remove(col)
+            except:
+                pass
+        self.dataset.to_csv(path, columns=columns, index=False, encoding='utf-8')
+
+        if package_path:
+            dirname = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(os.path.dirname(dirname))
+            os.chdir(os.path.dirname(package_path))
+            with tarfile.open(os.path.basename(package_path), 'w|gz', encoding='utf-8') as t:
+                t.add(os.path.join(project_root, 'README-distribution.md'), arcname='README.md')
+                t.add(os.path.join(project_root, 'LICENSE.txt'), arcname='LICENSE.txt')
+                t.add(path, arcname=os.path.basename(path))
 
     def dump(self, path):
         """
@@ -281,8 +333,76 @@ class NewsQaDataset(object):
 
         return pd.DataFrame(data=list(qa_map.items()), columns=['question', 'answers'])
 
+    def get_average_answer_length_over_questions(self):
+
+        def get_word_count(answer):
+            return len(answer.split())
+
+        qas = self.get_questions_and_answers()
+        avg_ans_lengths = np.zeros(len(qas))
+        for index, row in qas.iterrows():
+            avg_ans_lengths[index] = np.average([get_word_count(answer)
+                                                 for answer in row['answers']])
+
+        return pd.Series(avg_ans_lengths)
+
+    def get_question_types(self, num_most_common=6):
+        # Note: Would be nice not to make a series and just keep track of the counts
+        # but we couldn't get it to plot nicely in a bar plot.
+        result = Counter()
+        for _, row in tqdm.tqdm(self.dataset.iterrows(),
+                                total=len(self.dataset),
+                                mininterval=2, unit_scale=True, unit='questions',
+                                desc="Categorizing questions"):
+            q = row['question']
+            split = q.split()
+            # Ignore empty questions, they shouldn't happen.
+            if split:
+                # Use the first token as the question type.
+                question_type = split[0].lower()
+                result[question_type] += 1
+
+        result = result.most_common(num_most_common)
+        num_remaining = len(self.dataset) - sum(map(itemgetter(1), result))
+        result.append(('*other', num_remaining))
+        result = sorted(result, key=itemgetter(1), reverse=True)
+
+        result = pd.DataFrame(dict(question_type=list(map(itemgetter(0), result)),
+                                   count=list(map(itemgetter(1), result))))
+
+        return result
+
+    def get_story_lengths_words(self):
+
+        def get_word_count(story):
+            return len(story.split())
+
+        de_duped = self.dataset.drop_duplicates(subset='story_id')
+        return de_duped['story_text'].apply(get_word_count)
+
     def get_questions(self):
         return pd.Series(self.dataset['question'].dropna())
+
+    def get_question_lengths_words(self, max_length=-1):
+
+        def get_word_count(question):
+            return len(question.split())
+
+        lengths = self.get_questions().apply(get_word_count)
+        if max_length >= 0:
+            lengths = lengths[lengths <= max_length]
+        return lengths
+
+    def get_questions_without_answers(self):
+        questions_without_answers = []
+        for index, row in self.dataset.iterrows():
+            if not pd.isnull(row['question']) \
+                    and not (pd.isnull(row['answer_char_ranges'])
+                             and pd.isnull(row['validated_answers'])) \
+                    and ':' not in row['answer_char_ranges']:
+                questions_without_answers.append(row['question'])
+
+        return questions_without_answers
 
     def save_dataset_as_json_by_columns(self, path, n_entries=None):
         if not n_entries or n_entries > len(self.dataset):
@@ -306,3 +426,45 @@ class NewsQaDataset(object):
 
         with codecs.open(path, 'w', encoding="utf-8") as f:
             json.dump(data_dict, f, ensure_ascii=False)
+
+    def get_all_qas_for_story_ids(self, story_ids=None, n_stories=-1, include_no_answers=False):
+
+        data = {}
+        for story_id, matching_df in self.dataset.groupby('story_id'):
+
+            if story_ids and not story_id in story_ids:
+                continue
+            if n_stories >= 0 and len(data.keys()) >= n_stories:
+                break
+
+            entry = {}
+            for _, row in matching_df.iterrows():
+
+                # Initialization case
+                if 'story_text' not in entry:
+                    # Note: there are no titles in the dataset.
+                    entry['story_title'] = row['story_title']
+                    entry['story_text'] = row['story_text']
+                    entry['qa_pairs'] = []
+
+                # Prefer validated answers; if none fallback to regular ones
+                answers = []
+                if not pd.isnull(row['validated_answers']):
+                    validated_answers_dict = json.loads(row['validated_answers'])
+                    answers += validated_answers_dict.keys()
+
+                else:
+                    answers_split = row['answer_char_ranges'].split("|")
+                    for answer in answers_split:
+                        if answer not in answers:
+                            answers.append(answer)
+
+                if not include_no_answers:
+                    answers = [a for a in answers if a.lower() != "none"]
+
+                entry['qa_pairs'].append(
+                    {'question': row['question'], 'answers': "|".join(answers)})
+
+            data[story_id] = entry
+
+        return data

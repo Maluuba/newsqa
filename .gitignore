@@ -16,6 +16,13 @@ split_data
 *data-*.gz
 extracted_data
 
+# Downloaded Tools
+stanford-*.zip
+
+# Pre-processing files:
+*.pck
+*.tpck
+
 # Created by https://www.gitignore.io/api/python,bash,windows,linux,intellij
 
 ### Python ###
