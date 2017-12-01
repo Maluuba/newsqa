@@ -24,7 +24,12 @@ class TestNewsQaTokenize(unittest.TestCase):
         dir_name = os.path.dirname(os.path.abspath(__file__))
         tokenized_data_path = os.path.join(dir_name, '..', 'newsqa-data-tokenized-v1.csv')
         if not os.path.exists(tokenized_data_path):
-            combined_data_path = os.path.join(dir_name, '..', 'combined-newsqa-data-v1.csv')
+            combined_data_path = os.path.join(dir_name, '../../../combined-newsqa-data-v1.csv')
+            combined_data_path = os.path.abspath(combined_data_path)
+
+            if not os.path.exists(combined_data_path):
+                NewsQaDataset().dump(path=combined_data_path)
+
             tokenize(combined_data_path=combined_data_path, output_path=tokenized_data_path)
 
         cls.dataset = NewsQaDataset.load_combined(tokenized_data_path)
@@ -98,6 +103,4 @@ class TestNewsQaTokenize(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-
     unittest.main()

@@ -4,6 +4,7 @@ import io
 import logging
 import os
 import sys
+import zipfile
 from argparse import ArgumentParser
 
 import pandas as pd
@@ -31,7 +32,6 @@ def pack(dataset, writer):
     for row in tqdm(dataset.itertuples(), total=len(dataset),
                     mininterval=2, unit_scale=True, unit=" questions",
                     desc="Packing"):
-
         writer.write(row.question)
         writer.write('\n')
         refined_valid_spans = span_utils.valid_span_rack_from_string(
@@ -143,13 +143,24 @@ def tokenize(cnn_stories='cnn_stories.tgz', csv_dataset='newsqa-data-v1.csv',
     dataset = newsqa_data.dataset
 
     dir_name = os.path.dirname(os.path.abspath(__file__))
-    requirements = (dir_name,
+    requirements = [dir_name,
                     os.path.join(dir_name, 'stanford-postagger.jar'),
-                    os.path.join(dir_name, 'slf4j-api.jar'))
+                    os.path.join(dir_name, 'slf4j-api.jar')]
     for req in requirements:
         if not os.path.exists(req):
-            raise Exception("Missing `%s`\n"
-                            "Please refer to the README in the root of the project regarding the JAR's required." % req)
+            zip_path = os.path.join(dir_name, 'stanford-postagger-2015-12-09.zip')
+            if os.path.exists(zip_path):
+                logging.info("Extracting dependencies from `%s`.", zip_path)
+                with zipfile.ZipFile(zip_path) as z:
+                    z.extract('stanford-postagger-2015-12-09/stanford-postagger.jar', path=dir_name)
+                    z.extract('stanford-postagger-2015-12-09/lib/slf4j-api.jar', path=dir_name)
+                os.rename(os.path.join(dir_name, 'stanford-postagger-2015-12-09/stanford-postagger.jar'),
+                          os.path.join(dir_name, 'stanford-postagger.jar'))
+                os.rename(os.path.join(dir_name, 'stanford-postagger-2015-12-09/lib/slf4j-api.jar'),
+                          os.path.join(dir_name, 'slf4j-api.jar'))
+            else:
+                raise Exception("Missing `%s`."
+                                "\nPlease refer to the README in the root of the project regarding the JAR's required." % req)
 
     packed_filename = os.path.join(dir_name, csv_dataset + '.pck')
     unpacked_filename = os.path.join(dir_name, csv_dataset + '.tpck')
@@ -183,8 +194,6 @@ def tokenize(cnn_stories='cnn_stories.tgz', csv_dataset='newsqa-data-v1.csv',
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-
     parser = ArgumentParser("NewsQA dataset parser")
     parser.add_argument("--cnn_stories", default='cnn_stories.tgz')
     parser.add_argument("--csv_dataset", default='newsqa-data-v1.csv')

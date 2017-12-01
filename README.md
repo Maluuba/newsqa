@@ -12,21 +12,27 @@ Column Name | Description
 story_id | The identifier for the story. Comes from the member name in the CNN stories package.
 story_text | The text for the story.
 question | A question about the story.
-answer_token_ranges | word based indices to answers in story_text. E.g. `196:202,217:228`. Multiple selections from the same answer are separated by `,`. The start is inclusive and the end is exclusive. The end may point to whitespace after a token.
+answer_char_ranges | (in combined-newsqa-data-*.csv) The raw data collected for character based indices to answers in story_text. E.g. `196:228|196:202,217:228|None`. Answers from different crowdsourcers are separated by `|`, within those, multiple selections from the same crowdsourcer are separated by `,`.  `None` means the crowdsourcer thought there was no answer to the question in the story. The start is inclusive and the end is exclusive. The end may point to whitespace after a token.
+answer_token_ranges | (in newsqa-data-tokenized-*.csv) Word based indices to answers in story_text. E.g. `196:202,217:228`. Multiple selections from the same answer are separated by `,`. The start is inclusive and the end is exclusive. The end may point to whitespace after a token.
 
-## PEP8
-The code in this repository complies with PEP8 standards with a maximum line length of 99 characters.
+There are some other fields in combined-newsqa-data-*.csv for raw data collected when crowdsourcing such as the validation of collected data.
 
 ## Requirements
 
-* Download the CNN stories from [here][cnn_stories] to the maluuba/newsqa folder (for legal reasons, we can't automatically download these for you) 
-* Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder
-* Extract the dowloaded tar.gz contents into the maluuba/newsqa folder (`tar -xzvf newsqa-data-v1.tar.gz`) (we'll automate this step in the future)
-* Use Python 2 (Python 2 code was originally used to handle the stories and they got encoded strangely)
+* Download the CNN stories from [here][cnn_stories] to the maluuba/newsqa folder (for legal reasons, we can't automatically download these for you).
+* Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder.
+* Use Python 2.7 to package the dataset (Python 2.7 was originally used to handle the stories and they got encoded strangely - once the dataset is packaged by these scripts, you should be able to load the files with whatever tools you'd like) You can create a [Conda][conda] environment like so:
+```bash
+conda create --name newsqa python=2.7 "pandas>=0.19.2"
+```
+* Install the requirements in your environment:
+```bash
+pip install --requirement requirements.txt
+```
 * (Optional - Tokenization) To tokenize the data, you must install a JDK (Java Development Kit) so that you can compile and run Java code.
-* (Optional - Tokenization) To tokenize the data, you must get some JAR files. You can get the JAR files from [here][stanford_tagger]. You just need the [English option of version 3.6.0][stanford_zip_3.6.0]. Extract stanford-postagger-2015-12-09/stanford-postagger.jar and stanford-postagger-2015-12-09/lib/slf4j-api.jar to maluuba/newsqa
-* Run `pip install --requirement requirements.txt`
+* (Optional - Tokenization) To tokenize the data, you must get some JAR files. We use some libraries from [Stanford][stanford_tagger]. You just need to put the [English option of version 3.6.0][stanford_zip_3.6.0] in the maluuba/newsqa folder.
 
+[conda]: https://conda.io/miniconda.html
 [cnn_stories]: http://cs.nyu.edu/~kcho/DMQA/
 [maluuba_newsqa]: https://datasets.maluuba.com/NewsQA
 [maluuba_newsqa_dl]: https://datasets.maluuba.com/NewsQA/dl
@@ -35,13 +41,23 @@ The code in this repository complies with PEP8 standards with a maximum line len
 
 ## Package the Dataset
 
-## Tokenize and Split
+### Tokenize and Split
 To tokenize and split the dataset into train, dev, and test, to match the paper run 
 ```sh
 python maluuba/newsqa/data_generator.py
 ```
 
 The warnings from the tokenizer are normal.
+
+## Testing
+To make sure that everything is extracted right, run
+```bash
+python -m unittest discover .
+```
+All tests should pass.
+
+## PEP8
+The code in this repository complies with PEP8 standards with a maximum line length of 99 characters.
 
 ## Legal
 
