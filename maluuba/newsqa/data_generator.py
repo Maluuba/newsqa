@@ -2,11 +2,12 @@
 from __future__ import print_function
 
 import argparse
+import logging
 import os
 
+from simplify import simplify
 from split_dataset import split_data
 from tokenize_dataset import tokenize
-from simplify import simplify
 
 try:
     # Prefer a more specific path for when you run from the root of this repo

@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 import io
+import logging
 import os
 import unittest
+
+from tqdm import tqdm
 
 from maluuba.newsqa.data_processing import NewsQaDataset
 
@@ -18,9 +21,44 @@ def _get_answers(row):
 
 
 class TestNewsQa(unittest.TestCase):
+    _sentence_endings = set(u'.!?"”)')
+
     @classmethod
     def setUpClass(cls):
         cls.newsqa_dataset = NewsQaDataset()
+
+    def check_corruption(self, dataset):
+        def _is_token_ending(char):
+            return char.isspace() or char in TestNewsQa._sentence_endings
+
+        corrupt_count = 0
+        for row in tqdm(dataset.itertuples(index=False),
+                        total=len(dataset),
+                        mininterval=2, unit_scale=True, unit=" questions",
+                        desc="Checking for possible corruption"):
+            story_text = row.story_text
+            answer_char_ranges = row.answer_char_ranges.split('|')
+            corrupt = False
+            for user_answer_char_ranges in answer_char_ranges:
+                for char_range in user_answer_char_ranges.split(','):
+                    if char_range != 'None':
+                        start, end = map(int, char_range.split(':'))
+                        if start > len(story_text) or end > len(story_text) \
+                                or (start > 0 and not story_text[start - 1].isspace()) \
+                                or not _is_token_ending(story_text[end - 1]):
+                            corrupt = True
+                            corrupt_count += 1
+                            break
+                if corrupt:
+                    break
+        corrupt_percent = corrupt_count * 1.0 / len(dataset)
+        # Some issues are permitted due to certain characteristics of the original text
+        # that aren't worth checking.
+        self.assertLess(corrupt_percent, 0.00065,
+                        msg="Possibly corrupt: %d/%d (%.2f)%%" % (corrupt_count, len(dataset), corrupt_percent * 100))
+
+    def test_check_corruption(self):
+        self.check_corruption(self.newsqa_dataset.dataset)
 
     def test_entry_0(self):
         """
@@ -80,9 +118,24 @@ class TestNewsQa(unittest.TestCase):
 
     def test_load_combined(self):
         dir_name = os.path.dirname(os.path.abspath(__file__))
-        combined_data_path = os.path.join(dir_name, '..', 'combined-newsqa-data-v1.csv')
+        combined_data_path = os.path.join(dir_name, '../../../combined-newsqa-data-v1.csv')
+        combined_data_path = os.path.abspath(combined_data_path)
+
+        if not os.path.exists(combined_data_path):
+            self.newsqa_dataset.dump(path=combined_data_path)
 
         dataset = NewsQaDataset.load_combined(combined_data_path)
+
+        for original_row in tqdm(self.newsqa_dataset.dataset.itertuples(),
+                                 desc="Comparing stories",
+                                 total=len(self.newsqa_dataset.dataset),
+                                 unit_scale=True, mininterval=2, unit=" rows"):
+            expected = original_row.story_text
+            actual = dataset.iloc[original_row.Index].story_text
+            self.assertEqual(expected, actual,
+                             msg="Story texts at position %d are not equal."
+                                 "\nExpected:\"%s\""
+                                 "\n     Got:\"%s\"" % (original_row.Index, repr(expected), repr(actual)))
 
         row = dataset.iloc[0]
         self.assertEqual('./cnn/stories/42d01e187213e86f5fe617fe32e716ff7fa3afc4.story',

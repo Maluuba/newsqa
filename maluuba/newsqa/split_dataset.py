@@ -71,8 +71,6 @@ def split_data(dataset_path, output_dir_path='split_data'):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-
     project_root = os.path.dirname(os.path.dirname(_dir_name))
     default_dataset_path = os.path.join(project_root, 'combined-newsqa-data-v1.csv')
     default_output_dir = os.path.join(_dir_name, 'split_data')

@@ -23,18 +23,24 @@ def strip_empty_strings(strings):
     return strings
 
 
+def _get_logger(log_level=logging.INFO):
+    result = logging.getLogger(__name__)
+    if not result.handlers:
+        # Explicitly only set the log level if the logger hasn't been set up yet.
+        result.setLevel(log_level)
+        ch = logging.StreamHandler()
+        ch.setLevel(log_level)
+        formatter = logging.Formatter(
+            '[%(levelname)s] %(asctime)s - %(filename)s::%(funcName)s\n%(message)s')
+        ch.setFormatter(formatter)
+        result.addHandler(ch)
+    return result
+
+
 class NewsQaDataset(object):
     def __init__(self, cnn_stories_path=None, dataset_path=None, log_level=logging.INFO,
                  combined_data_path=None):
-        self._logger = logging.getLogger(__name__)
-        if not self._logger.handlers:
-            self._logger.setLevel(log_level)
-            ch = logging.StreamHandler()
-            ch.setLevel(log_level)
-            formatter = logging.Formatter(
-                '[%(levelname)s] %(asctime)s - %(filename)s::%(funcName)s\n%(message)s')
-            ch.setFormatter(formatter)
-            self._logger.addHandler(ch)
+        self._logger = _get_logger(log_level)
 
         if combined_data_path:
             self.dataset = self.load_combined(combined_data_path)
@@ -50,14 +56,22 @@ class NewsQaDataset(object):
             raise Exception(
                 "`%s` was not found.\nFor legal reasons, you must first download the stories on "
                 "your own from http://cs.nyu.edu/~kcho/DMQA/" % cnn_stories_path)
-        # TODO Handle dataset in a zipped file.
         if dataset_path is None:
             dataset_path = os.path.join(dirname, 'newsqa-data-v1.csv')
         if not os.path.exists(dataset_path):
-            raise Exception(
-                "`%s` was not found.\nFor legal reasons, you must first accept the terms "
-                "and download the dataset from "
-                "https://datasets.maluuba.com/NewsQA/dl" % dataset_path)
+            zipped_dataset_path = os.path.join(os.path.dirname(dataset_path), 'newsqa-data-v1.tar.gz')
+            if os.path.exists(zipped_dataset_path):
+                self._logger.info("Will use zipped dataset at `%s`.", zipped_dataset_path)
+                with tarfile.open(zipped_dataset_path, mode='r:gz', encoding='utf-8') as t:
+                    extraction_destination_path = os.path.dirname(dataset_path)
+                    self._logger.info("Extracting `%s` to `%s`.", zipped_dataset_path, extraction_destination_path)
+                    t.extractall(path=extraction_destination_path)
+            else:
+                raise Exception(
+                    "`%s` was not found.\nFor legal reasons, you must first accept the terms "
+                    "and download the dataset from "
+                    "https://datasets.maluuba.com/NewsQA/dl"
+                    "\n See the README in the root of this repo for more details." % dataset_path)
 
         self._logger.info("Loading dataset from `%s`...", dataset_path)
         # It's not really combined but it's okay because the method still works
@@ -119,14 +133,15 @@ class NewsQaDataset(object):
                                 story_lines[-1]):
                             story_lines = strip_empty_strings(story_lines[:-2])
                         if story_id in stories_requiring_two_extra_newlines:
-                            story_text = '\r\r\n'.join(story_lines)
+                            story_text = '\n\n\n'.join(story_lines)
                         elif story_id in stories_requiring_extra_newline:
-                            story_text = '\r\n'.join(story_lines)
+                            story_text = '\n\n'.join(story_lines)
                         else:
                             story_text = '\n'.join(story_lines)
 
                         story_text = story_text.replace(u'\xe2\x80\xa2', u'\xe2\u20ac\xa2')
                         story_text = story_text.replace(u'\xe2\x82\xac', u'\xe2\u201a\xac')
+                        story_text = story_text.replace('\r', '\n')
                         if story_id in stories_to_decode_specially:
                             story_text = story_text.replace(u'\xe9', u'\xc3\xa9')
                         story_id_to_text[story_id] = story_text
@@ -142,7 +157,7 @@ class NewsQaDataset(object):
                              desc="Setting story texts"):
             # Set story_text since we cannot include it in the dataset.
             story_text = story_id_to_text[row.story_id]
-            self.dataset.set_value(row.Index, 'story_text', story_text)
+            self.dataset.at[row.Index, 'story_text'] = story_text
 
             # Handle endings that are too large.
             answer_char_ranges = row.answer_char_ranges.split('|')
@@ -169,7 +184,7 @@ class NewsQaDataset(object):
                     updated_answer_char_ranges.append(updated_user_answer_char_ranges)
             if ranges_updated:
                 updated_answer_char_ranges = '|'.join(updated_answer_char_ranges)
-                self.dataset.set_value(row.Index, 'answer_char_ranges', updated_answer_char_ranges)
+                self.dataset.at[row.Index, 'answer_char_ranges'] = updated_answer_char_ranges
 
         self._logger.info("Done loading dataset.")
 
@@ -178,10 +193,12 @@ class NewsQaDataset(object):
         """
         :param path: The path of data to load.
         :return: A `DataFrame` containing the data from `path`.
-        :rtype: pands.DataFrame
+        :rtype: pandas.DataFrame
         """
 
-        logging.info("Loading data from %s", path)
+        logger = _get_logger()
+
+        logger.info("Loading data from `%s`...", path)
 
         result = pd.read_csv(path,
                              encoding='utf-8',
@@ -194,10 +211,9 @@ class NewsQaDataset(object):
                                  total=len(result),
                                  mininterval=2, unit_scale=True, unit=" questions",
                                  desc="Adjusting story texts"):
-
                 # Correct story_text to make indices work right.
-                story_text = row.story_text.replace('\r\n', '\n\n')
-                result.set_value(row.Index, 'story_text', story_text)
+                story_text = row.story_text.replace('\r\n', '\n')
+                result.at[row.Index, 'story_text'] = story_text
 
         return result
 
