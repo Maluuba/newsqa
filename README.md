@@ -19,8 +19,24 @@ There are some other fields in combined-newsqa-data-*.csv for raw data collected
 
 ## Requirements
 
+* Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder. No need to extract anything.
+* Run either the Docker steps which handle everything or do the manual set up.
+
+The dataset for token based indices will be the `combined-newsqa-data-*.csv` file in the root.
+
+The dataset for character based indices will be `maluuba/newsqa/newsqa-data-tokenized-*.csv`.
+
+### Docker Set Up
+These steps handle packaging the dataset and running the tests.
+
+In the root of this repo, run:
+```bash
+docker build -t maluuba/newsqa .
+docker run --rm -it -v ${PWD}:/usr/src/newsqa --name newsqa maluuba/newsqa
+```
+
+### Manual Set Up
 * Download the CNN stories from [here][cnn_stories] to the maluuba/newsqa folder (for legal reasons, we can't automatically download these for you).
-* Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder.
 * Use Python 2.7 to package the dataset (Python 2.7 was originally used to handle the stories and they got encoded strangely - once the dataset is packaged by these scripts, you should be able to load the files with whatever tools you'd like) You can create a [Conda][conda] environment like so:
 ```bash
 conda create --name newsqa python=2.7 "pandas>=0.19.2"
