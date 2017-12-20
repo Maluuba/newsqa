@@ -60,7 +60,7 @@ pip install --requirement requirements.txt
 #### Package the Dataset
 
 ##### Tokenize and Split
-To tokenize and split the dataset into train, dev, and test, to match the paper run 
+To tokenize and split the dataset into train, dev, and test, to match the paper run:
 ```sh
 python maluuba/newsqa/data_generator.py
 ```
