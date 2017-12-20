@@ -19,24 +19,33 @@ There are some other fields in combined-newsqa-data-*.csv for raw data collected
 
 ## Requirements
 
-* Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder. No need to extract anything.
-* Run either the Docker steps which handle everything or do the manual set up.
+Run either the Docker steps or do the manual set up.
 
-The dataset for token based indices will be the `combined-newsqa-data-*.csv` file in the root.
+The dataset for character based indices will be the `combined-newsqa-data-*.csv` file in the root.
 
-The dataset for character based indices will be `maluuba/newsqa/newsqa-data-tokenized-*.csv`.
+The dataset for token based indices will be `maluuba/newsqa/newsqa-data-tokenized-*.csv`.
 
-### Docker Set Up
+### (Recommended) Docker Set Up
 These steps handle packaging the dataset and running the tests.
 
-In the root of this repo, run:
+* Clone this repo.
+* Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder. No need to extract anything.
+* Download the CNN stories from [here][cnn_stories] to the maluuba/newsqa folder (for legal and technical reasons, we can't distribute this to you).
+* In the root of this repo, run:
 ```bash
 docker build -t maluuba/newsqa .
 docker run --rm -it -v ${PWD}:/usr/src/newsqa --name newsqa maluuba/newsqa
 ```
 
+You now have the datasets.
+
+#### Troubleshooting Docker Set Up
+If you run into issues such as the tokenization not unpacking, then you may need to give Docker at least 4GB of memory.
+
 ### Manual Set Up
-* Download the CNN stories from [here][cnn_stories] to the maluuba/newsqa folder (for legal reasons, we can't automatically download these for you).
+* Clone this repo.
+* Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder. No need to extract anything.
+* Download the CNN stories from [here][cnn_stories] to the maluuba/newsqa folder (for legal and technical reasons, we can't distribute this to you).
 * Use Python 2.7 to package the dataset (Python 2.7 was originally used to handle the stories and they got encoded strangely - once the dataset is packaged by these scripts, you should be able to load the files with whatever tools you'd like) You can create a [Conda][conda] environment like so:
 ```bash
 conda create --name newsqa python=2.7 "pandas>=0.19.2"
@@ -48,16 +57,9 @@ pip install --requirement requirements.txt
 * (Optional - Tokenization) To tokenize the data, you must install a JDK (Java Development Kit) so that you can compile and run Java code.
 * (Optional - Tokenization) To tokenize the data, you must get some JAR files. We use some libraries from [Stanford][stanford_tagger]. You just need to put the [English option of version 3.6.0][stanford_zip_3.6.0] in the maluuba/newsqa folder.
 
-[conda]: https://conda.io/miniconda.html
-[cnn_stories]: http://cs.nyu.edu/~kcho/DMQA/
-[maluuba_newsqa]: https://datasets.maluuba.com/NewsQA
-[maluuba_newsqa_dl]: https://datasets.maluuba.com/NewsQA/dl
-[stanford_tagger]: http://nlp.stanford.edu/software/tagger.html
-[stanford_zip_3.6.0]: https://nlp.stanford.edu/software/stanford-postagger-2015-12-09.zip
+#### Package the Dataset
 
-## Package the Dataset
-
-### Tokenize and Split
+##### Tokenize and Split
 To tokenize and split the dataset into train, dev, and test, to match the paper run 
 ```sh
 python maluuba/newsqa/data_generator.py
@@ -65,12 +67,19 @@ python maluuba/newsqa/data_generator.py
 
 The warnings from the tokenizer are normal.
 
-## Testing
+#### Testing
 To make sure that everything is extracted right, run
 ```bash
 python -m unittest discover .
 ```
 All tests should pass.
+
+[conda]: https://conda.io/miniconda.html
+[cnn_stories]: http://cs.nyu.edu/~kcho/DMQA/
+[maluuba_newsqa]: https://datasets.maluuba.com/NewsQA
+[maluuba_newsqa_dl]: https://datasets.maluuba.com/NewsQA/dl
+[stanford_tagger]: http://nlp.stanford.edu/software/tagger.html
+[stanford_zip_3.6.0]: https://nlp.stanford.edu/software/stanford-postagger-2015-12-09.zip
 
 ## PEP8
 The code in this repository complies with PEP8 standards with a maximum line length of 99 characters.
