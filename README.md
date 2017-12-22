@@ -12,7 +12,7 @@ Column Name | Description
 story_id | The identifier for the story. Comes from the member name in the CNN stories package.
 story_text | The text for the story.
 question | A question about the story.
-answer_char_ranges | (in combined-newsqa-data-*.csv) The raw data collected for character based indices to answers in story_text. E.g. `196:228|196:202,217:228|None`. Answers from different crowdsourcers are separated by `|`, within those, multiple selections from the same crowdsourcer are separated by `,`.  `None` means the crowdsourcer thought there was no answer to the question in the story. The start is inclusive and the end is exclusive. The end may point to whitespace after a token.
+answer_char_ranges | (in combined-newsqa-data-*.csv) The raw data collected for character based indices to answers in story_text. E.g. `196:228\|196:202,217:228\|None`. Answers from different crowdsourcers are separated by `\|`, within those, multiple selections from the same crowdsourcer are separated by `,`.  `None` means the crowdsourcer thought there was no answer to the question in the story. The start is inclusive and the end is exclusive. The end may point to whitespace after a token. | Note that the `\` isn't actually in the data, it's just in this README so that it displays nicely on GitHub.
 answer_token_ranges | (in newsqa-data-tokenized-*.csv) Word based indices to answers in story_text. E.g. `196:202,217:228`. Multiple selections from the same answer are separated by `,`. The start is inclusive and the end is exclusive. The end may point to whitespace after a token.
 
 There are some other fields in combined-newsqa-data-*.csv for raw data collected when crowdsourcing such as the validation of collected data.
