@@ -37,7 +37,7 @@ docker build -t maluuba/newsqa .
 docker run --rm -it -v ${PWD}:/usr/src/newsqa --name newsqa maluuba/newsqa
 ```
 
-You now have the datasets.
+You now have the datasets.  See `combined-newsqa-data-*.csv` or `maluuba/newsqa/newsqa-data-tokenized-*.csv`.
 
 #### Troubleshooting Docker Set Up
 If you run into issues such as the tokenization not unpacking, then you may need to give Docker at least 4GB of memory.
@@ -52,7 +52,7 @@ conda create --name newsqa python=2.7 "pandas>=0.19.2"
 ```
 * Install the requirements in your environment:
 ```bash
-pip install --requirement requirements.txt
+conda activate newsqa && pip install --requirement requirements.txt
 ```
 * (Optional - Tokenization) To tokenize the data, you must install a JDK (Java Development Kit) so that you can compile and run Java code.
 * (Optional - Tokenization) To tokenize the data, you must get some JAR files. We use some libraries from [Stanford][stanford_tagger]. You just need to put the [English option of version 3.6.0][stanford_zip_3.6.0] in the maluuba/newsqa folder.

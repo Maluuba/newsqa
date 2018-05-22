@@ -1,14 +1,16 @@
-FROM continuumio/miniconda
+FROM continuumio/miniconda:4.4.10
 
 # Install JDK.
 # Inspired by:
 # * https://www.digitalocean.com/community/tutorials/how-to-install-java-with-apt-get-on-debian-8
 # * https://github.com/dockerfile/java/blob/master/oracle-java8/Dockerfile
+# * https://askubuntu.com/a/15272
 RUN echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | debconf-set-selections && \
-    apt-get install --yes software-properties-common && \
+    apt-get install --yes software-properties-common gnupg && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C2518248EEA14886 && \
     add-apt-repository --yes "deb http://ppa.launchpad.net/webupd8team/java/ubuntu xenial main" && \
     apt-get update && \
-    apt-get install --yes oracle-java8-installer && \
+    apt-get install --yes --allow-unauthenticated oracle-java8-installer && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /var/cache/oracle-jdk8-installer
 
