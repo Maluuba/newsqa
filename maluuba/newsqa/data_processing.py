@@ -44,6 +44,7 @@ class NewsQaDataset(object):
 
         if combined_data_path:
             self.dataset = self.load_combined(combined_data_path)
+            self.version = self._get_version(combined_data_path)
             return
 
         if not six.PY2:
@@ -72,6 +73,8 @@ class NewsQaDataset(object):
                     "and download the dataset from "
                     "https://datasets.maluuba.com/NewsQA/dl"
                     "\n See the README in the root of this repo for more details." % dataset_path)
+
+        self.version = self._get_version(dataset_path)
 
         self._logger.info("Loading dataset from `%s`...", dataset_path)
         # It's not really combined but it's okay because the method still works
@@ -217,6 +220,25 @@ class NewsQaDataset(object):
 
         return result
 
+    def _get_version(self, path):
+        m = re.match(r'^.*-v(([\d.])*\d+).[^.]*$', path)
+        if not m:
+            raise ValueError("Version number not found in `{}`.".format(path))
+        return m.group(1)
+
+    def _map_answers(self, answers):
+        result = []
+        for a in answers.split('|'):
+            user_answers = []
+            result.append(dict(userAnswers=user_answers))
+            for r in a.split(','):
+                if r == 'None':
+                    user_answers.append(dict(no_answer=True))
+                else:
+                    s, e = r.split(':')
+                    user_answers.append(dict(s=s, e=e))
+        return result
+
     def export_shareable(self, path, package_path=None):
         """
         Export the dataset without the stories so that it can be shared.
@@ -254,8 +276,54 @@ class NewsQaDataset(object):
 
         :param path: The path to write the dataset to.
         """
-        self._logger.info("Packaging dataset to %s", path)
-        self.dataset.to_csv(path, index=False, encoding='utf-8')
+        self._logger.info("Packaging dataset to `%s`.", path)
+        if path.endswith('.json'):
+            data = self.to_dict()
+            # FIXME TypeError: write() argument 1 must be unicode, not str
+            with io.open(path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, separators=(',', ':'), encoding='utf-8')
+        elif path.endswith('.jsonl'):
+            raise NotImplemented
+            # TODO
+            data = []
+            with io.open(path, 'w', encoding='utf-8') as f:
+                for d in data:
+                    json.dump(d, f, ensure_ascii=False, separators=(',', ':'))
+                    f.write(u'\n')
+        else:
+            # Default for backwards compatibility.
+            self.dataset.to_csv(path, index=False, encoding='utf-8')
+
+    def to_dict(self):
+        """
+        :return: The data in a `dict`.
+        """
+        data = []
+        cache = dict()
+        for row in tqdm.tqdm(self.dataset.itertuples(),
+                             total=len(self.dataset),
+                             mininterval=2, unit_scale=True, unit=" questions",
+                             desc="Building json"):
+            questions = cache.get(row.story_id)
+            if questions is None:
+                questions = []
+                datum = dict(storyId=row.story_id,
+                             text=row.story_text,
+                             questions=questions)
+                cache[row.story_id] = questions
+                data.append(datum)
+            q = dict(
+                q=row.question,
+                answers=self._map_answers(row.answer_char_ranges),
+                isAnswerAbsent=row.is_answer_absent,
+            )
+            if row.is_question_bad != '?':
+                q[u'isQuestionBad'] = float(row.is_question_bad)
+            if row.validated_answers and not pd.isnull(row.validated_answers):
+                q[u'validatedAnswers'] = json.loads(row.validated_answers)
+            questions.append(q)
+        data = dict(data=data, version=self.version)
+        return data
 
     def get_vocab_len(self):
         """

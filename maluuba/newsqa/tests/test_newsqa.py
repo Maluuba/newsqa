@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import io
-import logging
+import json
 import os
 import unittest
 
@@ -60,6 +60,19 @@ class TestNewsQa(unittest.TestCase):
     def test_check_corruption(self):
         self.check_corruption(self.newsqa_dataset.dataset)
 
+    def test_dump_json(self):
+        dir_name = os.path.dirname(os.path.abspath(__file__))
+        combined_data_path = os.path.join(dir_name, 'combined-newsqa-data-v1.json')
+        self.newsqa_dataset.dump(path=combined_data_path)
+
+        with io.open(combined_data_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        self.assertIn('data', data)
+        self.assertEqual(data.get('version'), '1')
+        data = data['data']
+
+        self.assertGreater(len(data), 0)
     def test_entry_0(self):
         """
         Sanity test to make sure the first entry loads.
@@ -147,15 +160,6 @@ class TestNewsQa(unittest.TestCase):
         self.assertEqual('{"none": 1, "294:297": 2}', row['validated_answers'])
         self.assertEqual("NEW DELHI, India (CNN) -- A high court in nort", row.story_text[:46])
         self.assertEqual({"19 "}, _get_answers(row))
-
-
-def _write_to_file(path, story_ids):
-    if story_ids:
-        with io.open(path, 'r', encoding='utf8') as f:
-            story_ids.update(f.read().split('\n'))
-        story_ids = filter(None, story_ids)
-        with io.open(path, 'w', encoding='utf8') as f:
-            f.write(u'\n'.join(sorted(story_ids)))
 
 
 if __name__ == '__main__':
