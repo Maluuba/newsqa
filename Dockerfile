@@ -1,5 +1,7 @@
 FROM continuumio/miniconda:4.4.10
 
+RUN apt-get update && apt-get install --yes apt-transport-https
+
 # Install JDK.
 # Inspired by:
 # * https://www.digitalocean.com/community/tutorials/how-to-install-java-with-apt-get-on-debian-8
