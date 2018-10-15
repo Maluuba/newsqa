@@ -23,6 +23,8 @@ except:
 
 NEARBY_RANGE_THRESHOLD = 3
 
+logger = logging.getLogger('newsqa')
+
 
 def format(text):
     return text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
@@ -130,7 +132,7 @@ def unpack(dataset, packed, output_path):
 
         data.append(datum)
 
-    logging.info("Writing to `%s`.", output_path)
+    logger.info("Writing to `%s`.", output_path)
     pd.DataFrame(data=data).to_csv(output_path,
                                    index=False, encoding='utf-8')
 
@@ -150,7 +152,7 @@ def tokenize(cnn_stories='cnn_stories.tgz', csv_dataset='newsqa-data-v1.csv',
         if not os.path.exists(req):
             zip_path = os.path.join(dir_name, 'stanford-postagger-2015-12-09.zip')
             if os.path.exists(zip_path):
-                logging.info("Extracting dependencies from `%s`.", zip_path)
+                logger.info("Extracting dependencies from `%s`.", zip_path)
                 with zipfile.ZipFile(zip_path) as z:
                     z.extract('stanford-postagger-2015-12-09/stanford-postagger.jar', path=dir_name)
                     z.extract('stanford-postagger-2015-12-09/lib/slf4j-api.jar', path=dir_name)
@@ -165,28 +167,28 @@ def tokenize(cnn_stories='cnn_stories.tgz', csv_dataset='newsqa-data-v1.csv',
     packed_filename = os.path.join(dir_name, csv_dataset + '.pck')
     unpacked_filename = os.path.join(dir_name, csv_dataset + '.tpck')
 
-    logging.info("(1/3) - Packing data to `%s`.", packed_filename)
+    logger.info("(1/3) - Packing data to `%s`.", packed_filename)
     with io.open(packed_filename, mode='w', encoding='utf-8') as writer:
         pack(dataset, writer)
-    logging.info("(2/3) - Tokenizing packed file to `%s`.", unpacked_filename)
+    logger.info("(2/3) - Tokenizing packed file to `%s`.", unpacked_filename)
     classpath = os.pathsep.join(requirements)
 
     cmd = 'javac -classpath %s %s' % (classpath, os.path.join(dir_name, 'TokenizerSplitter.java'))
-    logging.info("Running `%s`", cmd)
+    logger.info("Running `%s`", cmd)
     exit_status = os.system(cmd)
     if exit_status:
         sys.exit(exit_status)
 
     cmd = 'java -classpath %s TokenizerSplitter %s > %s' % (
         classpath, packed_filename, unpacked_filename)
-    logging.info("Running `%s`\nMaluuba: The warnings below are normal.", cmd)
+    logger.info("Running `%s`\nMaluuba: The warnings below are normal.", cmd)
     exit_status = os.system(cmd)
     if exit_status:
         sys.exit(exit_status)
 
     os.remove(packed_filename)
 
-    logging.info("(3/3) - Unpacking tokenized file to `%s`", output_path)
+    logger.info("(3/3) - Unpacking tokenized file to `%s`", output_path)
     with io.open(unpacked_filename, mode='r', encoding='utf-8') as packed:
         unpack(dataset, packed, output_path)
 

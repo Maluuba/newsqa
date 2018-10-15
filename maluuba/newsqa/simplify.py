@@ -11,12 +11,17 @@ def _read_csv(file_path):
     res = []
     with open(file_path) as csvfile:
         headers = next(csvfile)
+        headers = headers.strip().split(',')
+        story_id_index = headers.index('story_id')
+        story_text_index = headers.index('story_text')
+        question_index = headers.index('question')
+        answer_index = headers.index('answer_token_ranges')
         _reader = csv.reader(csvfile)
         for i, row in enumerate(_reader):
-            res.append({"story_id": row[0],
-                        "story_text": row[5],
-                        "question": row[1],
-                        "answer_token_ranges": row[6]})
+            res.append({"story_id": row[story_id_index],
+                        "story_text": row[story_text_index],
+                        "question": row[question_index],
+                        "answer_token_ranges": row[answer_index]})
     return res
 
 

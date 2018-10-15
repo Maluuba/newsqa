@@ -24,7 +24,7 @@ def strip_empty_strings(strings):
 
 
 def _get_logger(log_level=logging.INFO):
-    result = logging.getLogger(__name__)
+    result = logging.getLogger('newsqa')
     if not result.handlers:
         # Explicitly only set the log level if the logger hasn't been set up yet.
         result.setLevel(log_level)

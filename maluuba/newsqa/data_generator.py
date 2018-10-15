@@ -29,6 +29,9 @@ if __name__ == "__main__":
 
     newsqa_data = NewsQaDataset(args.cnn_stories_path, args.dataset_path)
 
+    logger = logging.getLogger('newsqa')
+    logger.setLevel(logging.INFO)
+
     # Dump the dataset to one file.
     newsqa_data.dump(path='combined-newsqa-data-v1.csv')
 
