@@ -13,11 +13,13 @@ except:
 
 _dir_name = os.path.dirname(os.path.abspath(__file__))
 
+logger = logging.getLogger('newsqa')
+
 
 def split_data(dataset_path, output_dir_path='split_data'):
     original = NewsQaDataset.load_combined(dataset_path)
 
-    logging.info("Loading story ID's split.")
+    logger.info("Loading story ID's split.")
     train_story_ids = set(
         pd.read_csv(os.path.join(_dir_name, 'train_story_ids.csv'))['story_id'].values)
     dev_story_ids = set(
@@ -48,14 +50,14 @@ def split_data(dataset_path, output_dir_path='split_data'):
         elif story_id in test_story_ids:
             test_data.append(row)
         else:
-            logging.warning(
+            logger.warning(
                 "%s is not in train, dev, nor test", story_id)
 
     if not os.path.exists(output_dir_path):
         os.makedirs(output_dir_path)
 
     def _write_to_csv(data, path):
-        logging.info("Writing %d rows to %s", len(data), path)
+        logger.info("Writing %d rows to %s", len(data), path)
         pd.DataFrame(data=data).to_csv(path,
                                        columns=original.columns.values,
                                        index=False, encoding='utf-8')
@@ -64,7 +66,7 @@ def split_data(dataset_path, output_dir_path='split_data'):
     assert len(dev_data) == 5166, "Incorrect amount of validation data."
     assert len(test_data) == 5126, "Incorrect amount of test data."
 
-    logging.info("Writing split data to %s", output_dir_path)
+    logger.info("Writing split data to %s", output_dir_path)
     _write_to_csv(train_data, os.path.join(output_dir_path, 'train.csv'))
     _write_to_csv(dev_data, os.path.join(output_dir_path, 'dev.csv'))
     _write_to_csv(test_data, os.path.join(output_dir_path, 'test.csv'))
