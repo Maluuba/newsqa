@@ -46,7 +46,7 @@ If you run into issues such as the tokenization not unpacking, then you may need
 * Clone this repo.
 * Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder. No need to extract anything.
 * Download the CNN stories from [here][cnn_stories] to the maluuba/newsqa folder (for legal and technical reasons, we can't distribute this to you).
-* Use Python 2.7 to package the dataset (Python 2.7 was originally used to handle the stories and they got encoded strangely - once the dataset is packaged by these scripts, you should be able to load the files with whatever tools you'd like) You can create a [Conda][conda] environment like so:
+* Use Python 2.7 to package the dataset (Python 2.7 was originally used to handle the stories and they got encoded strangely - once the dataset is packaged by these scripts, you should be able to load the files with whatever tools you'd like). You can create a [Conda][conda] environment like so:
 ```bash
 conda create --name newsqa python=2.7 "pandas>=0.19.2"
 ```
