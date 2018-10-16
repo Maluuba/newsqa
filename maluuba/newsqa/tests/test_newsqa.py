@@ -63,7 +63,8 @@ class TestNewsQa(unittest.TestCase):
 
     def test_dump_json(self):
         dir_name = os.path.dirname(os.path.abspath(__file__))
-        combined_data_path = os.path.join(dir_name, 'combined-newsqa-data-v1.json')
+        combined_data_path = os.path.join(dir_name, '../../../combined-newsqa-data-v1.json')
+        combined_data_path = os.path.abspath(combined_data_path)
         self.newsqa_dataset.dump(path=combined_data_path)
 
         with io.open(combined_data_path, 'r', encoding='utf-8') as f:

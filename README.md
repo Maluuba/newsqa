@@ -1,11 +1,13 @@
 # Maluuba NewsQA
 Tools for using Maluuba's news questions and answer data.
 
-You can find more information about the dataset [here][maluuba_newsqa].
+You can find more information with stats on the dataset [here][maluuba_newsqa].
 
 ## Data Description
 
-The combined dataset is made of several columns to show the story text and the derived answers from several crowdsourcers.
+(TODO: Add docs for json format.)
+
+The combined dataset in the .csv file is made of several columns to show the story text and the derived answers from several crowdsourcers.
 
 Column Name | Description
 --- | ---
@@ -37,7 +39,17 @@ docker build -t maluuba/newsqa .
 docker run --rm -it -v ${PWD}:/usr/src/newsqa --name newsqa maluuba/newsqa
 ```
 
-You now have the datasets.  See `combined-newsqa-data-*.csv` or `maluuba/newsqa/newsqa-data-tokenized-*.csv`.
+You now have the datasets.  See `combined-newsqa-data-*.json`, `combined-newsqa-data-*.csv`, or `maluuba/newsqa/newsqa-data-tokenized-*.csv`.
+
+#### Tokenize and Split
+If you want to tokenize and split the data into train, dev, and test, to match the paper run, then you must get "into" the container and run the packaging command:
+```bash
+docker run --rm -it -v ${PWD}:/usr/src/newsqa --name newsqa maluuba/newsqa /bin/bash
+# Now you are in the running container.
+source activate newsqa
+python maluuba/newsqa/data_generator.py
+```
+The warnings from the tokenizer are normal.
 
 #### Troubleshooting Docker Set Up
 If you run into issues such as the tokenization not unpacking, then you may need to give Docker at least 4GB of memory.
