@@ -189,6 +189,29 @@ class NewsQaDataset(object):
                 updated_answer_char_ranges = '|'.join(updated_answer_char_ranges)
                 self.dataset.at[row.Index, 'answer_char_ranges'] = updated_answer_char_ranges
 
+            if row.validated_answers and not pd.isnull(row.validated_answers):
+                updated_validated_answers = {}
+                validated_answers = json.loads(row.validated_answers)
+                for char_range, count in six.iteritems(validated_answers):
+                    if ':' in char_range:
+                        start, end = map(int, char_range.split(':'))
+                        if end > len(story_text):
+                            ranges_updated = True
+                            end = len(story_text)
+                        if start < end:
+                            char_range = '{}:{}'.format(start, end)
+                            updated_validated_answers[char_range] = count
+                        else:
+                            # It's unclear why but sometimes the end is after the start.
+                            # We'll filter these out.
+                            ranges_updated = True
+                    else:
+                        updated_validated_answers[char_range] = count
+                if ranges_updated:
+                    updated_validated_answers = json.dumps(updated_validated_answers,
+                                                           ensure_ascii=False, separators=(',', ':'))
+                    self.dataset.at[row.Index, 'validated_answers'] = updated_validated_answers
+
         self._logger.info("Done loading dataset.")
 
     @staticmethod
@@ -230,12 +253,12 @@ class NewsQaDataset(object):
         result = []
         for a in answers.split('|'):
             user_answers = []
-            result.append(dict(userAnswers=user_answers))
+            result.append(dict(sourcerAnswers=user_answers))
             for r in a.split(','):
                 if r == 'None':
-                    user_answers.append(dict(no_answer=True))
+                    user_answers.append(dict(noAnswer=True))
                 else:
-                    s, e = r.split(':')
+                    s, e = map(int, r.split(':'))
                     user_answers.append(dict(s=s, e=e))
         return result
 
@@ -279,9 +302,10 @@ class NewsQaDataset(object):
         self._logger.info("Packaging dataset to `%s`.", path)
         if path.endswith('.json'):
             data = self.to_dict()
-            # FIXME TypeError: write() argument 1 must be unicode, not str
+            # Most reliable way to write UTF-8 JSON as described: https://stackoverflow.com/a/18337754/1226799
+            data = json.dumps(data, ensure_ascii=False, separators=(',', ':'), encoding='utf-8')
             with io.open(path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, separators=(',', ':'), encoding='utf-8')
+                f.write(unicode(data))
         elif path.endswith('.jsonl'):
             raise NotImplemented
             # TODO
@@ -300,6 +324,26 @@ class NewsQaDataset(object):
         """
         data = []
         cache = dict()
+
+        dir_name = os.path.dirname(os.path.abspath(__file__))
+
+        train_story_ids = set(
+            pd.read_csv(os.path.join(dir_name, 'train_story_ids.csv'))['story_id'].values)
+        dev_story_ids = set(
+            pd.read_csv(os.path.join(dir_name, 'dev_story_ids.csv'))['story_id'].values)
+        test_story_ids = set(
+            pd.read_csv(os.path.join(dir_name, 'test_story_ids.csv'))['story_id'].values)
+
+        def _get_data_type(story_id):
+            if story_id in train_story_ids:
+                return 'train'
+            elif story_id in dev_story_ids:
+                return 'dev'
+            elif story_id in test_story_ids:
+                return 'test'
+            else:
+                return ValueError("{} not found in any story ID set.".format(story_id))
+
         for row in tqdm.tqdm(self.dataset.itertuples(),
                              total=len(self.dataset),
                              mininterval=2, unit_scale=True, unit=" questions",
@@ -308,6 +352,7 @@ class NewsQaDataset(object):
             if questions is None:
                 questions = []
                 datum = dict(storyId=row.story_id,
+                             type=_get_data_type(row.story_id),
                              text=row.story_text,
                              questions=questions)
                 cache[row.story_id] = questions
@@ -318,10 +363,23 @@ class NewsQaDataset(object):
                 isAnswerAbsent=row.is_answer_absent,
             )
             if row.is_question_bad != '?':
-                q[u'isQuestionBad'] = float(row.is_question_bad)
+                q['isQuestionBad'] = float(row.is_question_bad)
             if row.validated_answers and not pd.isnull(row.validated_answers):
-                q[u'validatedAnswers'] = json.loads(row.validated_answers)
+                validated_answers = json.loads(row.validated_answers)
+                q['validatedAnswers'] = []
+                for answer, count in six.iteritems(validated_answers):
+                    answer_item = dict(count=count)
+                    if answer == 'none':
+                        answer_item['noAnswer'] = True
+                    elif answer == 'bad_question':
+                        answer_item['badQuestion'] = True
+                    else:
+                        s, e = map(int, answer.split(':'))
+                        answer_item['s'] = s
+                        answer_item['e'] = e
+                    q['validatedAnswers'].append(answer_item)
             questions.append(q)
+
         data = dict(data=data, version=self.version)
         return data
 

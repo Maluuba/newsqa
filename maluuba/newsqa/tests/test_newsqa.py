@@ -20,6 +20,10 @@ def _get_answers(row):
     return result
 
 
+def _is_token_ending(char):
+    return char.isspace() or char in TestNewsQa._sentence_endings
+
+
 class TestNewsQa(unittest.TestCase):
     _sentence_endings = set(u'.!?"”)')
 
@@ -28,9 +32,6 @@ class TestNewsQa(unittest.TestCase):
         cls.newsqa_dataset = NewsQaDataset()
 
     def check_corruption(self, dataset):
-        def _is_token_ending(char):
-            return char.isspace() or char in TestNewsQa._sentence_endings
-
         corrupt_count = 0
         for row in tqdm(dataset.itertuples(index=False),
                         total=len(dataset),
@@ -73,6 +74,49 @@ class TestNewsQa(unittest.TestCase):
         data = data['data']
 
         self.assertGreater(len(data), 0)
+        self.assertEqual(len(data), 12744)
+
+        corrupt_count = 0
+        validation_corrupt_count = 0
+        num_questions = 0
+        for story_item in tqdm(data,
+                               mininterval=2, unit_scale=True, unit=" stories",
+                               desc="Checking for possible corruption"):
+            story_text = story_item['text']
+            for question_item in story_item['questions']:
+                num_questions += 1
+                corrupt = False
+                for sourcer_answer_char_ranges in question_item['answers']:
+                    for char_range in sourcer_answer_char_ranges['sourcerAnswers']:
+                        if not char_range.get('noAnswer'):
+                            start, end = char_range['s'], char_range['e']
+                            if start > len(story_text) or end > len(story_text) \
+                                    or (start > 0 and not story_text[start - 1].isspace()) \
+                                    or not _is_token_ending(story_text[end - 1]):
+                                corrupt = True
+                                corrupt_count += 1
+                                break
+                    if corrupt:
+                        break
+                for val in question_item.get('validatedAnswers', ()):
+                    start, end = val.get('s'), val.get('e')
+                    if start is not None and end is not None \
+                            and (start > len(story_text) or end > len(story_text) \
+                                 or (start > 0 and not story_text[start - 1].isspace()) \
+                                 or not _is_token_ending(story_text[end - 1])):
+                        validation_corrupt_count += 1
+                        break
+
+        corrupt_percent = corrupt_count * 1.0 / num_questions
+        validation_corrupt_percent = validation_corrupt_count * 1.0 / num_questions
+        # Some issues are permitted due to certain characteristics of the original text
+        # that aren't worth checking.
+        self.assertLess(corrupt_percent, 0.00065,
+                        msg="Possibly corrupt: %d/%d (%.2f)%%" % (corrupt_count, num_questions, corrupt_percent * 100))
+        self.assertLess(validation_corrupt_percent, 0.00065,
+                        msg="Possibly corrupt validation: %d/%d (%.2f)%%" % (validation_corrupt_count, num_questions,
+                                                                             validation_corrupt_percent * 100))
+
     def test_entry_0(self):
         """
         Sanity test to make sure the first entry loads.
