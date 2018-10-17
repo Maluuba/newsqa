@@ -306,15 +306,9 @@ class NewsQaDataset(object):
             data = json.dumps(data, ensure_ascii=False, separators=(',', ':'), encoding='utf-8')
             with io.open(path, 'w', encoding='utf-8') as f:
                 f.write(unicode(data))
-        elif path.endswith('.jsonl'):
-            raise NotImplemented
-            # TODO
-            data = []
-            with io.open(path, 'w', encoding='utf-8') as f:
-                for d in data:
-                    json.dump(d, f, ensure_ascii=False, separators=(',', ':'))
-                    f.write(u'\n')
         else:
+            if not path.endswith('.csv'):
+                self._logger.warning("Writing data as CSV to `%s`.", path)
             # Default for backwards compatibility.
             self.dataset.to_csv(path, index=False, encoding='utf-8')
 
