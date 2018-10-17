@@ -74,7 +74,7 @@ text | The text for the story.
 type | The type of data this should be used for. Will be "train", "dev", or "test".  
 questions | The questions about the story.
 q | A question about the story.
-consensus | The consensus answer. Can have start and end positions like in the example above or can be `{"badQuestion": true}` or `{"noAnswer": true}`.
+consensus | The consensus answer. Use this field to pick the best continuous answer span from the text. If you want to know about a question having multiple answers in the text then you can use the more detailed "answers" and "validatedAnswers". The object can have start and end positions like in the example above or can be `{"badQuestion": true}` or `{"noAnswer": true}`. Note that there is only one consensus answer since it's based on the majority agreement of the crowdsourcers.
 isAnswerAbsent | Proportion of crowdsourcers that said there was no answer to the question in the story.
 isQuestionBad | Proportion of crowdsourcers that said the question does not make sense.
 version | The version string for the dataset.

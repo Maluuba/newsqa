@@ -419,6 +419,11 @@ class NewsQaDataset(object):
 
     def get_consensus_answer(self, row):
         """
+        Gets the consensus answer.
+
+        Note that there cannot be multiple since we only ran validation when there was no consensus.
+        Then each validator was only allowed to pick one option and we used an odd number of validators.
+
         :param row: A row in the dataset.
         :return: The answer with majority consensus.
             Can be `(None, None)` if it was agreed that there was no answer or it was a bad question.
@@ -636,7 +641,7 @@ class NewsQaDataset(object):
                     q['validatedAnswers'].append(answer_item)
             consensus_start, consensus_end = self.get_consensus_answer(row)
             if consensus_start is None and consensus_end is None:
-                if row.is_question_bad:
+                if q.get('isQuestionBad', 0) >= 0.5:
                     q['consensus'] = dict(badQuestion=True)
                 else:
                     q['consensus'] = dict(noAnswer=True)
