@@ -7,7 +7,6 @@ You can find more information with stats on the dataset [here][maluuba_newsqa].
 We originally only compiled to CSV but now we will support some other formats.
 
 ### JSON
-The JSON formatted data 
 
 Example:
 ```json
@@ -76,7 +75,7 @@ type | The type of data this should be used for. Will be "train", "dev", or "tes
 questions | The questions about the story.
 q | A question about the story.
 consensus | The consensus answer. Can have start and end positions like in the example above or can be `{"badQuestion": true}` or `{"noAnswer": true}`.
-isAnswerAbsent | Proportion of crowdsourcers that thought there was no answer to the question in the story.
+isAnswerAbsent | Proportion of crowdsourcers that said there was no answer to the question in the story.
 isQuestionBad | Proportion of crowdsourcers that said the question does not make sense.
 version | The version string for the dataset.
 
