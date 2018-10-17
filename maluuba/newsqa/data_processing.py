@@ -318,71 +318,6 @@ class NewsQaDataset(object):
             # Default for backwards compatibility.
             self.dataset.to_csv(path, index=False, encoding='utf-8')
 
-    def to_dict(self):
-        """
-        :return: The data in a `dict`.
-        """
-        data = []
-        cache = dict()
-
-        dir_name = os.path.dirname(os.path.abspath(__file__))
-
-        train_story_ids = set(
-            pd.read_csv(os.path.join(dir_name, 'train_story_ids.csv'))['story_id'].values)
-        dev_story_ids = set(
-            pd.read_csv(os.path.join(dir_name, 'dev_story_ids.csv'))['story_id'].values)
-        test_story_ids = set(
-            pd.read_csv(os.path.join(dir_name, 'test_story_ids.csv'))['story_id'].values)
-
-        def _get_data_type(story_id):
-            if story_id in train_story_ids:
-                return 'train'
-            elif story_id in dev_story_ids:
-                return 'dev'
-            elif story_id in test_story_ids:
-                return 'test'
-            else:
-                return ValueError("{} not found in any story ID set.".format(story_id))
-
-        for row in tqdm.tqdm(self.dataset.itertuples(),
-                             total=len(self.dataset),
-                             mininterval=2, unit_scale=True, unit=" questions",
-                             desc="Building json"):
-            questions = cache.get(row.story_id)
-            if questions is None:
-                questions = []
-                datum = dict(storyId=row.story_id,
-                             type=_get_data_type(row.story_id),
-                             text=row.story_text,
-                             questions=questions)
-                cache[row.story_id] = questions
-                data.append(datum)
-            q = dict(
-                q=row.question,
-                answers=self._map_answers(row.answer_char_ranges),
-                isAnswerAbsent=row.is_answer_absent,
-            )
-            if row.is_question_bad != '?':
-                q['isQuestionBad'] = float(row.is_question_bad)
-            if row.validated_answers and not pd.isnull(row.validated_answers):
-                validated_answers = json.loads(row.validated_answers)
-                q['validatedAnswers'] = []
-                for answer, count in six.iteritems(validated_answers):
-                    answer_item = dict(count=count)
-                    if answer == 'none':
-                        answer_item['noAnswer'] = True
-                    elif answer == 'bad_question':
-                        answer_item['badQuestion'] = True
-                    else:
-                        s, e = map(int, answer.split(':'))
-                        answer_item['s'] = s
-                        answer_item['e'] = e
-                    q['validatedAnswers'].append(answer_item)
-            questions.append(q)
-
-        data = dict(data=data, version=self.version)
-        return data
-
     def get_vocab_len(self):
         """
         :return: Approximate vocabulary size.
@@ -487,6 +422,39 @@ class NewsQaDataset(object):
                                                  for answer in row['answers']])
 
         return pd.Series(avg_ans_lengths)
+
+    def get_consensus_answer(self, row):
+        """
+        :param row: A row in the dataset.
+        :return: The answer with majority consensus.
+            Can be `(None, None)` if it was agreed that there was no answer or it was a bad question.
+        :rtype: tuple
+        """
+        answer_char_start, answer_char_end = None, None
+        if row.validated_answers:
+            validated_answers = json.loads(row.validated_answers)
+            answer, max_count = max(six.iteritems(validated_answers), key=itemgetter(1))
+            total_count = sum(six.itervalues(validated_answers))
+            if max_count >= total_count / 2.0:
+                if answer != 'none' and answer != 'bad_question':
+                    answer_char_start, answer_char_end = map(int, answer.split(':'))
+                else:
+                    # No valid answer.
+                    pass
+        else:
+            # Check row.answer_char_ranges for most common answer.
+            # No validation was done so there must be an answer with consensus.
+            answers = Counter()
+            for user_answer in row.answer_char_ranges.split('|'):
+                for ans in user_answer.split(','):
+                    answers[ans] += 1
+            top_answer = answers.most_common(1)
+            if top_answer:
+                top_answer, count = top_answer[0]
+                if ':' in top_answer:
+                    answer_char_start, answer_char_end = map(int, top_answer.split(':'))
+
+        return answer_char_start, answer_char_end
 
     def get_question_types(self, num_most_common=6):
         # Note: Would be nice not to make a series and just keep track of the counts
@@ -609,4 +577,78 @@ class NewsQaDataset(object):
 
             data[story_id] = entry
 
+        return data
+
+    def to_dict(self):
+        """
+        :return: The data in a `dict`.
+        :rtype: dict
+        """
+        data = []
+        cache = dict()
+
+        dir_name = os.path.dirname(os.path.abspath(__file__))
+
+        train_story_ids = set(
+            pd.read_csv(os.path.join(dir_name, 'train_story_ids.csv'))['story_id'].values)
+        dev_story_ids = set(
+            pd.read_csv(os.path.join(dir_name, 'dev_story_ids.csv'))['story_id'].values)
+        test_story_ids = set(
+            pd.read_csv(os.path.join(dir_name, 'test_story_ids.csv'))['story_id'].values)
+
+        def _get_data_type(story_id):
+            if story_id in train_story_ids:
+                return 'train'
+            elif story_id in dev_story_ids:
+                return 'dev'
+            elif story_id in test_story_ids:
+                return 'test'
+            else:
+                return ValueError("{} not found in any story ID set.".format(story_id))
+
+        for row in tqdm.tqdm(self.dataset.itertuples(),
+                             total=len(self.dataset),
+                             mininterval=2, unit_scale=True, unit=" questions",
+                             desc="Building json"):
+            questions = cache.get(row.story_id)
+            if questions is None:
+                questions = []
+                datum = dict(storyId=row.story_id,
+                             type=_get_data_type(row.story_id),
+                             text=row.story_text,
+                             questions=questions)
+                cache[row.story_id] = questions
+                data.append(datum)
+            q = dict(
+                q=row.question,
+                answers=self._map_answers(row.answer_char_ranges),
+                isAnswerAbsent=row.is_answer_absent,
+            )
+            if row.is_question_bad != '?':
+                q['isQuestionBad'] = float(row.is_question_bad)
+            if row.validated_answers and not pd.isnull(row.validated_answers):
+                validated_answers = json.loads(row.validated_answers)
+                q['validatedAnswers'] = []
+                for answer, count in six.iteritems(validated_answers):
+                    answer_item = dict(count=count)
+                    if answer == 'none':
+                        answer_item['noAnswer'] = True
+                    elif answer == 'bad_question':
+                        answer_item['badQuestion'] = True
+                    else:
+                        s, e = map(int, answer.split(':'))
+                        answer_item['s'] = s
+                        answer_item['e'] = e
+                    q['validatedAnswers'].append(answer_item)
+            consensus_start, consensus_end = self.get_consensus_answer(row)
+            if consensus_start is None and consensus_end is None:
+                if row.is_question_bad:
+                    q['consensus'] = dict(badQuestion=True)
+                else:
+                    q['consensus'] = dict(noAnswer=True)
+            else:
+                q['consensus'] = dict(s=consensus_start, e=consensus_end)
+            questions.append(q)
+
+        data = dict(data=data, version=self.version)
         return data

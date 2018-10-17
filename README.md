@@ -20,8 +20,12 @@ Example:
             "questions": [
                 {
                     "q": "What should you not do with Tingle's magic words?",
-                    "isAnswerAbsent": 0.5,
-                    "isQuestionBad": 0.333333333333,
+                    "consensus": {
+                        "s": 115,
+                        "e": 125
+                    },
+                    "isAnswerAbsent": 0.25,
+                    "isQuestionBad": 0.25,
                     "answers": [
                         {
                             "sourcerAnswers": [
@@ -43,7 +47,7 @@ Example:
                         {
                             "s": 115,
                             "e": 125,
-                            "count": 1
+                            "count": 2
                         },
                         {
                             "noAnswer": true,
@@ -71,6 +75,7 @@ text | The text for the story.
 type | The type of data this should be used for. Will be "train", "dev", or "test".  
 questions | The questions about the story.
 q | A question about the story.
+consensus | The consensus answer. Can have start and end positions like in the example above or can be `{"badQuestion": true}` or `{"noAnswer": true}`.
 isAnswerAbsent | Proportion of crowdsourcers that thought there was no answer to the question in the story.
 isQuestionBad | Proportion of crowdsourcers that said the question does not make sense.
 version | The version string for the dataset.

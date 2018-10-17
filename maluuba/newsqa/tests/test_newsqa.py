@@ -3,10 +3,14 @@ import io
 import json
 import os
 import unittest
+from collections import namedtuple
 
 from tqdm import tqdm
 
 from maluuba.newsqa.data_processing import NewsQaDataset
+
+_TestRow = namedtuple('TestRow', ['story_id', 'question', 'answer_char_ranges', 'is_answer_absent',
+                                  'is_question_bad', 'validated_answers', 'story_text'])
 
 
 def _get_answers(row):
@@ -173,6 +177,42 @@ class TestNewsQa(unittest.TestCase):
         answers = self.newsqa_dataset.get_answers()
         self.assertEqual(list(answers[:4]),
                          ["19 ", "19 ", "Sudanese region of Darfur ", "Seleia, "])
+
+    def test_get_consensus_answer(self):
+        # Top valid answer.
+        row = _TestRow(story_id='test0', question="Who did it?",
+                       answer_char_ranges='0:3', is_answer_absent=False, is_question_bad=False,
+                       validated_answers='{"0:3":1}',
+                       story_text="You did it.")
+        self.assertTupleEqual((0, 3), self.newsqa_dataset.get_consensus_answer(row))
+
+        # Top valid answer = none.
+        row = _TestRow(story_id='test0', question="Who did it?",
+                       answer_char_ranges='0:3', is_answer_absent=False, is_question_bad=False,
+                       validated_answers='{"0:3":1, "none":2}',
+                       story_text="You did it.")
+        self.assertTupleEqual((None, None), self.newsqa_dataset.get_consensus_answer(row))
+
+        # No good valid answer.
+        row = _TestRow(story_id='test0', question="Who did it?",
+                       answer_char_ranges='0:3', is_answer_absent=False, is_question_bad=False,
+                       validated_answers='{"0:3":1, "4:7":1, "none":1}',
+                       story_text="You did it.")
+        self.assertTupleEqual((None, None), self.newsqa_dataset.get_consensus_answer(row))
+
+        # Use answer_char_ranges.
+        row = _TestRow(story_id='test0', question="Who did it?",
+                       answer_char_ranges='0:3|4:7|0:3', is_answer_absent=False, is_question_bad=False,
+                       validated_answers='',
+                       story_text="You did it.")
+        self.assertTupleEqual((0, 3), self.newsqa_dataset.get_consensus_answer(row))
+
+        # Use answer_char_ranges with none
+        row = _TestRow(story_id='test0', question="Who did it?",
+                       answer_char_ranges='none|4:7|none', is_answer_absent=False, is_question_bad=False,
+                       validated_answers='',
+                       story_text="You did it.")
+        self.assertTupleEqual((None, None), self.newsqa_dataset.get_consensus_answer(row))
 
     def test_load_combined(self):
         dir_name = os.path.dirname(os.path.abspath(__file__))
