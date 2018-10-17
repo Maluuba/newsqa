@@ -1,11 +1,95 @@
 # Maluuba NewsQA
-Tools for using Maluuba's news questions and answer data.
+Tools for using Maluuba's news questions and answer data. The code in the repo is used to compile the dataset since it cannot be made directly available due to legal reasons.
 
 You can find more information with stats on the dataset [here][maluuba_newsqa].
 
 ## Data Description
+We originally only compiled to CSV but now we will support some other formats.
 
-(TODO: Add docs for json format.)
+### JSON
+The JSON formatted data 
+
+Example:
+```json
+{
+    "data": [
+        {
+            "storyId": "./contoso/stories/2e1d4",
+            "text": "Hyrule (Contoso) -- Tingle, Tingle! Kooloo-Limpah! ...These are the magic words that Tingle created himself. Don't steal them!",
+            "type": "train",
+            "questions": [
+                {
+                    "q": "What should you not do with Tingle's magic words?",
+                    "isAnswerAbsent": 0.5,
+                    "isQuestionBad": 0.333333333333,
+                    "answers": [
+                        {
+                            "sourcerAnswers": [
+                                {
+                                    "s": 115,
+                                    "e": 125
+                                }
+                            ]
+                        },
+                        {
+                            "sourcerAnswers": [
+                                {
+                                    "noAnswer": true
+                                }
+                            ]
+                        }
+                    ],
+                    "validatedAnswers": [
+                        {
+                            "s": 115,
+                            "e": 125,
+                            "count": 1
+                        },
+                        {
+                            "noAnswer": true,
+                            "count": 1
+                        },
+                        {
+                            "badQuestion": true,
+                            "count": 1
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "version": "1"
+}
+```
+Explanation:
+
+Field | Description
+--- | ---
+data | A list of the data for the dataset.
+storyId | The identifier for the story. Comes from the member name in the CNN stories package.   
+text | The text for the story.
+type | The type of data this should be used for. Will be "train", "dev", or "test".  
+questions | The questions about the story.
+q | A question about the story.
+isAnswerAbsent | Proportion of crowdsourcers that thought there was no answer to the question in the story.
+isQuestionBad | Proportion of crowdsourcers that said the question does not make sense.
+version | The version string for the dataset.
+
+Explanation of the answer fields:
+
+Field | Description
+--- | ---
+answers | The answers from various crowdsourcers.
+sourcerAnswers| The answer provided from one crowdsourcer.
+validatedAnswers | The answers from the validators.
+s | The first character of the answer in "text" (inclusive).
+e | The last character of the answer in "text" (exclusive).
+noAnswer | The crowdsourcer said that there was no answer to the question in the text.
+badQuestion | The validator said that the question did not make sense.
+count | The number of validators that agreed with this answer.
+
+### CSV
+This section describes the CSV formatted files for the dataset. We originally only compiled to CSV.
 
 The combined dataset in the .csv file is made of several columns to show the story text and the derived answers from several crowdsourcers.
 
