@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 import io
-import logging
+import json
 import os
 import unittest
+from collections import namedtuple
 
 from tqdm import tqdm
 
 from maluuba.newsqa.data_processing import NewsQaDataset
+
+_TestRow = namedtuple('TestRow', ['story_id', 'question', 'answer_char_ranges', 'is_answer_absent',
+                                  'is_question_bad', 'validated_answers', 'story_text'])
 
 
 def _get_answers(row):
@@ -20,6 +24,10 @@ def _get_answers(row):
     return result
 
 
+def _is_token_ending(char):
+    return char.isspace() or char in TestNewsQa._sentence_endings
+
+
 class TestNewsQa(unittest.TestCase):
     _sentence_endings = set(u'.!?"”)')
 
@@ -28,9 +36,6 @@ class TestNewsQa(unittest.TestCase):
         cls.newsqa_dataset = NewsQaDataset()
 
     def check_corruption(self, dataset):
-        def _is_token_ending(char):
-            return char.isspace() or char in TestNewsQa._sentence_endings
-
         corrupt_count = 0
         for row in tqdm(dataset.itertuples(index=False),
                         total=len(dataset),
@@ -59,6 +64,63 @@ class TestNewsQa(unittest.TestCase):
 
     def test_check_corruption(self):
         self.check_corruption(self.newsqa_dataset.dataset)
+
+    def test_dump_json(self):
+        dir_name = os.path.dirname(os.path.abspath(__file__))
+        combined_data_path = os.path.join(dir_name, '../../../combined-newsqa-data-v1.json')
+        combined_data_path = os.path.abspath(combined_data_path)
+        self.newsqa_dataset.dump(path=combined_data_path)
+
+        with io.open(combined_data_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        self.assertIn('data', data)
+        self.assertEqual(data.get('version'), '1')
+        data = data['data']
+
+        self.assertGreater(len(data), 0)
+        self.assertEqual(len(data), 12744)
+
+        corrupt_count = 0
+        validation_corrupt_count = 0
+        num_questions = 0
+        for story_item in tqdm(data,
+                               mininterval=2, unit_scale=True, unit=" stories",
+                               desc="Checking for possible corruption"):
+            story_text = story_item['text']
+            for question_item in story_item['questions']:
+                num_questions += 1
+                corrupt = False
+                for sourcer_answer_char_ranges in question_item['answers']:
+                    for char_range in sourcer_answer_char_ranges['sourcerAnswers']:
+                        if not char_range.get('noAnswer'):
+                            start, end = char_range['s'], char_range['e']
+                            if start > len(story_text) or end > len(story_text) \
+                                    or (start > 0 and not story_text[start - 1].isspace()) \
+                                    or not _is_token_ending(story_text[end - 1]):
+                                corrupt = True
+                                corrupt_count += 1
+                                break
+                    if corrupt:
+                        break
+                for val in question_item.get('validatedAnswers', ()):
+                    start, end = val.get('s'), val.get('e')
+                    if start is not None and end is not None \
+                            and (start > len(story_text) or end > len(story_text) \
+                                 or (start > 0 and not story_text[start - 1].isspace()) \
+                                 or not _is_token_ending(story_text[end - 1])):
+                        validation_corrupt_count += 1
+                        break
+
+        corrupt_percent = corrupt_count * 1.0 / num_questions
+        validation_corrupt_percent = validation_corrupt_count * 1.0 / num_questions
+        # Some issues are permitted due to certain characteristics of the original text
+        # that aren't worth checking.
+        self.assertLess(corrupt_percent, 0.00065,
+                        msg="Possibly corrupt: %d/%d (%.2f)%%" % (corrupt_count, num_questions, corrupt_percent * 100))
+        self.assertLess(validation_corrupt_percent, 0.00065,
+                        msg="Possibly corrupt validation: %d/%d (%.2f)%%" % (validation_corrupt_count, num_questions,
+                                                                             validation_corrupt_percent * 100))
 
     def test_entry_0(self):
         """
@@ -116,6 +178,42 @@ class TestNewsQa(unittest.TestCase):
         self.assertEqual(list(answers[:4]),
                          ["19 ", "19 ", "Sudanese region of Darfur ", "Seleia, "])
 
+    def test_get_consensus_answer(self):
+        # Top valid answer.
+        row = _TestRow(story_id='test0', question="Who did it?",
+                       answer_char_ranges='0:3', is_answer_absent=False, is_question_bad=False,
+                       validated_answers='{"0:3":1}',
+                       story_text="You did it.")
+        self.assertTupleEqual((0, 3), self.newsqa_dataset.get_consensus_answer(row))
+
+        # Top valid answer = none.
+        row = _TestRow(story_id='test0', question="Who did it?",
+                       answer_char_ranges='0:3', is_answer_absent=False, is_question_bad=False,
+                       validated_answers='{"0:3":1, "none":2}',
+                       story_text="You did it.")
+        self.assertTupleEqual((None, None), self.newsqa_dataset.get_consensus_answer(row))
+
+        # No good valid answer.
+        row = _TestRow(story_id='test0', question="Who did it?",
+                       answer_char_ranges='0:3', is_answer_absent=False, is_question_bad=False,
+                       validated_answers='{"0:3":1, "4:7":1, "none":1}',
+                       story_text="You did it.")
+        self.assertTupleEqual((None, None), self.newsqa_dataset.get_consensus_answer(row))
+
+        # Use answer_char_ranges.
+        row = _TestRow(story_id='test0', question="Who did it?",
+                       answer_char_ranges='0:3|4:7|0:3', is_answer_absent=False, is_question_bad=False,
+                       validated_answers='',
+                       story_text="You did it.")
+        self.assertTupleEqual((0, 3), self.newsqa_dataset.get_consensus_answer(row))
+
+        # Use answer_char_ranges with none
+        row = _TestRow(story_id='test0', question="Who did it?",
+                       answer_char_ranges='none|4:7|none', is_answer_absent=False, is_question_bad=False,
+                       validated_answers='',
+                       story_text="You did it.")
+        self.assertTupleEqual((None, None), self.newsqa_dataset.get_consensus_answer(row))
+
     def test_load_combined(self):
         dir_name = os.path.dirname(os.path.abspath(__file__))
         combined_data_path = os.path.join(dir_name, '../../../combined-newsqa-data-v1.csv')
@@ -147,15 +245,6 @@ class TestNewsQa(unittest.TestCase):
         self.assertEqual('{"none": 1, "294:297": 2}', row['validated_answers'])
         self.assertEqual("NEW DELHI, India (CNN) -- A high court in nort", row.story_text[:46])
         self.assertEqual({"19 "}, _get_answers(row))
-
-
-def _write_to_file(path, story_ids):
-    if story_ids:
-        with io.open(path, 'r', encoding='utf8') as f:
-            story_ids.update(f.read().split('\n'))
-        story_ids = filter(None, story_ids)
-        with io.open(path, 'w', encoding='utf8') as f:
-            f.write(u'\n'.join(sorted(story_ids)))
 
 
 if __name__ == '__main__':

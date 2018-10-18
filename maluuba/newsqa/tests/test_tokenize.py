@@ -23,6 +23,7 @@ class TestNewsQaTokenize(unittest.TestCase):
     def setUpClass(cls):
         dir_name = os.path.dirname(os.path.abspath(__file__))
         tokenized_data_path = os.path.join(dir_name, '..', 'newsqa-data-tokenized-v1.csv')
+        tokenized_data_path = os.path.abspath(tokenized_data_path)
         if not os.path.exists(tokenized_data_path):
             combined_data_path = os.path.join(dir_name, '../../../combined-newsqa-data-v1.csv')
             combined_data_path = os.path.abspath(combined_data_path)

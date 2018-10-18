@@ -44,6 +44,7 @@ class NewsQaDataset(object):
 
         if combined_data_path:
             self.dataset = self.load_combined(combined_data_path)
+            self.version = self._get_version(combined_data_path)
             return
 
         if not six.PY2:
@@ -72,6 +73,8 @@ class NewsQaDataset(object):
                     "and download the dataset from "
                     "https://datasets.maluuba.com/NewsQA/dl"
                     "\n See the README in the root of this repo for more details." % dataset_path)
+
+        self.version = self._get_version(dataset_path)
 
         self._logger.info("Loading dataset from `%s`...", dataset_path)
         # It's not really combined but it's okay because the method still works
@@ -186,6 +189,29 @@ class NewsQaDataset(object):
                 updated_answer_char_ranges = '|'.join(updated_answer_char_ranges)
                 self.dataset.at[row.Index, 'answer_char_ranges'] = updated_answer_char_ranges
 
+            if row.validated_answers and not pd.isnull(row.validated_answers):
+                updated_validated_answers = {}
+                validated_answers = json.loads(row.validated_answers)
+                for char_range, count in six.iteritems(validated_answers):
+                    if ':' in char_range:
+                        start, end = map(int, char_range.split(':'))
+                        if end > len(story_text):
+                            ranges_updated = True
+                            end = len(story_text)
+                        if start < end:
+                            char_range = '{}:{}'.format(start, end)
+                            updated_validated_answers[char_range] = count
+                        else:
+                            # It's unclear why but sometimes the end is after the start.
+                            # We'll filter these out.
+                            ranges_updated = True
+                    else:
+                        updated_validated_answers[char_range] = count
+                if ranges_updated:
+                    updated_validated_answers = json.dumps(updated_validated_answers,
+                                                           ensure_ascii=False, separators=(',', ':'))
+                    self.dataset.at[row.Index, 'validated_answers'] = updated_validated_answers
+
         self._logger.info("Done loading dataset.")
 
     @staticmethod
@@ -215,6 +241,25 @@ class NewsQaDataset(object):
                 story_text = row.story_text.replace('\r\n', '\n')
                 result.at[row.Index, 'story_text'] = story_text
 
+        return result
+
+    def _get_version(self, path):
+        m = re.match(r'^.*-v(([\d.])*\d+).[^.]*$', path)
+        if not m:
+            raise ValueError("Version number not found in `{}`.".format(path))
+        return m.group(1)
+
+    def _map_answers(self, answers):
+        result = []
+        for a in answers.split('|'):
+            user_answers = []
+            result.append(dict(sourcerAnswers=user_answers))
+            for r in a.split(','):
+                if r == 'None':
+                    user_answers.append(dict(noAnswer=True))
+                else:
+                    s, e = map(int, r.split(':'))
+                    user_answers.append(dict(s=s, e=e))
         return result
 
     def export_shareable(self, path, package_path=None):
@@ -254,8 +299,18 @@ class NewsQaDataset(object):
 
         :param path: The path to write the dataset to.
         """
-        self._logger.info("Packaging dataset to %s", path)
-        self.dataset.to_csv(path, index=False, encoding='utf-8')
+        self._logger.info("Packaging dataset to `%s`.", path)
+        if path.endswith('.json'):
+            data = self.to_dict()
+            # Most reliable way to write UTF-8 JSON as described: https://stackoverflow.com/a/18337754/1226799
+            data = json.dumps(data, ensure_ascii=False, separators=(',', ':'), encoding='utf-8')
+            with io.open(path, 'w', encoding='utf-8') as f:
+                f.write(unicode(data))
+        else:
+            if not path.endswith('.csv'):
+                self._logger.warning("Writing data as CSV to `%s`.", path)
+            # Default for backwards compatibility.
+            self.dataset.to_csv(path, index=False, encoding='utf-8')
 
     def get_vocab_len(self):
         """
@@ -361,6 +416,44 @@ class NewsQaDataset(object):
                                                  for answer in row['answers']])
 
         return pd.Series(avg_ans_lengths)
+
+    def get_consensus_answer(self, row):
+        """
+        Gets the consensus answer.
+
+        Note that there cannot be multiple since we only ran validation when there was no consensus.
+        Then each validator was only allowed to pick one option and we used an odd number of validators.
+
+        :param row: A row in the dataset.
+        :return: The answer with majority consensus.
+            Can be `(None, None)` if it was agreed that there was no answer or it was a bad question.
+        :rtype: tuple
+        """
+        answer_char_start, answer_char_end = None, None
+        if row.validated_answers:
+            validated_answers = json.loads(row.validated_answers)
+            answer, max_count = max(six.iteritems(validated_answers), key=itemgetter(1))
+            total_count = sum(six.itervalues(validated_answers))
+            if max_count >= total_count / 2.0:
+                if answer != 'none' and answer != 'bad_question':
+                    answer_char_start, answer_char_end = map(int, answer.split(':'))
+                else:
+                    # No valid answer.
+                    pass
+        else:
+            # Check row.answer_char_ranges for most common answer.
+            # No validation was done so there must be an answer with consensus.
+            answers = Counter()
+            for user_answer in row.answer_char_ranges.split('|'):
+                for ans in user_answer.split(','):
+                    answers[ans] += 1
+            top_answer = answers.most_common(1)
+            if top_answer:
+                top_answer, count = top_answer[0]
+                if ':' in top_answer:
+                    answer_char_start, answer_char_end = map(int, top_answer.split(':'))
+
+        return answer_char_start, answer_char_end
 
     def get_question_types(self, num_most_common=6):
         # Note: Would be nice not to make a series and just keep track of the counts
@@ -483,4 +576,78 @@ class NewsQaDataset(object):
 
             data[story_id] = entry
 
+        return data
+
+    def to_dict(self):
+        """
+        :return: The data in a `dict`.
+        :rtype: dict
+        """
+        data = []
+        cache = dict()
+
+        dir_name = os.path.dirname(os.path.abspath(__file__))
+
+        train_story_ids = set(
+            pd.read_csv(os.path.join(dir_name, 'train_story_ids.csv'))['story_id'].values)
+        dev_story_ids = set(
+            pd.read_csv(os.path.join(dir_name, 'dev_story_ids.csv'))['story_id'].values)
+        test_story_ids = set(
+            pd.read_csv(os.path.join(dir_name, 'test_story_ids.csv'))['story_id'].values)
+
+        def _get_data_type(story_id):
+            if story_id in train_story_ids:
+                return 'train'
+            elif story_id in dev_story_ids:
+                return 'dev'
+            elif story_id in test_story_ids:
+                return 'test'
+            else:
+                return ValueError("{} not found in any story ID set.".format(story_id))
+
+        for row in tqdm.tqdm(self.dataset.itertuples(),
+                             total=len(self.dataset),
+                             mininterval=2, unit_scale=True, unit=" questions",
+                             desc="Building json"):
+            questions = cache.get(row.story_id)
+            if questions is None:
+                questions = []
+                datum = dict(storyId=row.story_id,
+                             type=_get_data_type(row.story_id),
+                             text=row.story_text,
+                             questions=questions)
+                cache[row.story_id] = questions
+                data.append(datum)
+            q = dict(
+                q=row.question,
+                answers=self._map_answers(row.answer_char_ranges),
+                isAnswerAbsent=row.is_answer_absent,
+            )
+            if row.is_question_bad != '?':
+                q['isQuestionBad'] = float(row.is_question_bad)
+            if row.validated_answers and not pd.isnull(row.validated_answers):
+                validated_answers = json.loads(row.validated_answers)
+                q['validatedAnswers'] = []
+                for answer, count in six.iteritems(validated_answers):
+                    answer_item = dict(count=count)
+                    if answer == 'none':
+                        answer_item['noAnswer'] = True
+                    elif answer == 'bad_question':
+                        answer_item['badQuestion'] = True
+                    else:
+                        s, e = map(int, answer.split(':'))
+                        answer_item['s'] = s
+                        answer_item['e'] = e
+                    q['validatedAnswers'].append(answer_item)
+            consensus_start, consensus_end = self.get_consensus_answer(row)
+            if consensus_start is None and consensus_end is None:
+                if q.get('isQuestionBad', 0) >= 0.5:
+                    q['consensus'] = dict(badQuestion=True)
+                else:
+                    q['consensus'] = dict(noAnswer=True)
+            else:
+                q['consensus'] = dict(s=consensus_start, e=consensus_end)
+            questions.append(q)
+
+        data = dict(data=data, version=self.version)
         return data

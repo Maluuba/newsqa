@@ -1,11 +1,100 @@
 # Maluuba NewsQA
-Tools for using Maluuba's news questions and answer data.
+Tools for using Maluuba's news questions and answer data. The code in the repo is used to compile the dataset since it cannot be made directly available due to legal reasons.
 
-You can find more information about the dataset [here][maluuba_newsqa].
+You can find more information with stats on the dataset [here][maluuba_newsqa].
 
 ## Data Description
+We originally only compiled to CSV but now we also build a JSON file.
 
-The combined dataset is made of several columns to show the story text and the derived answers from several crowdsourcers.
+### JSON
+Here is an example of how the data in `combined-newsqa-data-v1.json` will look:
+```json
+{
+    "data": [
+        {
+            "storyId": "./contoso/stories/2e1d4",
+            "text": "Hyrule (Contoso) -- Tingle, Tingle! Kooloo-Limpah! ...These are the magic words that Tingle created himself. Don't steal them!",
+            "type": "train",
+            "questions": [
+                {
+                    "q": "What should you not do with Tingle's magic words?",
+                    "consensus": {
+                        "s": 115,
+                        "e": 125
+                    },
+                    "isAnswerAbsent": 0.25,
+                    "isQuestionBad": 0.25,
+                    "answers": [
+                        {
+                            "sourcerAnswers": [
+                                {
+                                    "s": 115,
+                                    "e": 125
+                                }
+                            ]
+                        },
+                        {
+                            "sourcerAnswers": [
+                                {
+                                    "noAnswer": true
+                                }
+                            ]
+                        }
+                    ],
+                    "validatedAnswers": [
+                        {
+                            "s": 115,
+                            "e": 125,
+                            "count": 2
+                        },
+                        {
+                            "noAnswer": true,
+                            "count": 1
+                        },
+                        {
+                            "badQuestion": true,
+                            "count": 1
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "version": "1"
+}
+```
+Explanation:
+
+Field | Description
+--- | ---
+data | A list of the data for the dataset.
+storyId | The identifier for the story. Comes from the member name in the CNN stories package.   
+text | The text for the story.
+type | The type of data this should be used for. Will be "train", "dev", or "test".  
+questions | The questions about the story.
+q | A question about the story.
+consensus | The consensus answer. Use this field to pick the best continuous answer span from the text. If you want to know about a question having multiple answers in the text then you can use the more detailed "answers" and "validatedAnswers". The object can have start and end positions like in the example above or can be `{"badQuestion": true}` or `{"noAnswer": true}`. Note that there is only one consensus answer since it's based on the majority agreement of the crowdsourcers.
+isAnswerAbsent | Proportion of crowdsourcers that said there was no answer to the question in the story.
+isQuestionBad | Proportion of crowdsourcers that said the question does not make sense.
+version | The version string for the dataset.
+
+Explanation of the answer fields:
+
+Field | Description
+--- | ---
+answers | The answers from various crowdsourcers.
+sourcerAnswers| The answer provided from one crowdsourcer.
+validatedAnswers | The answers from the validators.
+s | The first character of the answer in "text" (inclusive).
+e | The last character of the answer in "text" (exclusive).
+noAnswer | The crowdsourcer said that there was no answer to the question in the text.
+badQuestion | The validator said that the question did not make sense.
+count | The number of validators that agreed with this answer.
+
+### CSV
+This section describes the CSV formatted files for the dataset. We originally only compiled to CSV.
+
+The combined dataset in the .csv file is made of several columns to show the story text and the derived answers from several crowdsourcers.
 
 Column Name | Description
 --- | ---
@@ -37,7 +126,14 @@ docker build -t maluuba/newsqa .
 docker run --rm -it -v ${PWD}:/usr/src/newsqa --name newsqa maluuba/newsqa
 ```
 
-You now have the datasets.  See `combined-newsqa-data-*.csv` or `maluuba/newsqa/newsqa-data-tokenized-*.csv`.
+You now have the datasets.  See `combined-newsqa-data-*.json`, `combined-newsqa-data-*.csv`, or `maluuba/newsqa/newsqa-data-tokenized-*.csv`.
+
+#### Tokenize and Split
+If you want to tokenize and split the data into train, dev, and test, to match the paper run, then you must get "into" the container and run the packaging command:
+```bash
+docker run --rm -it -v ${PWD}:/usr/src/newsqa --name newsqa maluuba/newsqa python maluuba/newsqa/data_generator.py
+```
+The warnings from the tokenizer are normal.
 
 #### Troubleshooting Docker Set Up
 If you run into issues such as the tokenization not unpacking, then you may need to give Docker at least 4GB of memory.

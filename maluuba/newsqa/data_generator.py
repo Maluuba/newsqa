@@ -32,7 +32,8 @@ if __name__ == "__main__":
     logger = logging.getLogger('newsqa')
     logger.setLevel(logging.INFO)
 
-    # Dump the dataset to one file.
+    # Dump the dataset to common formats.
+    newsqa_data.dump(path='combined-newsqa-data-v1.json')
     newsqa_data.dump(path='combined-newsqa-data-v1.csv')
 
     tokenized_data_path = os.path.join(dir_name, 'newsqa-data-tokenized-v1.csv')

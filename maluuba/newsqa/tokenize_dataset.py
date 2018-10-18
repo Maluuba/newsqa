@@ -181,7 +181,7 @@ def tokenize(cnn_stories='cnn_stories.tgz', csv_dataset='newsqa-data-v1.csv',
 
     cmd = 'java -classpath %s TokenizerSplitter %s > %s' % (
         classpath, packed_filename, unpacked_filename)
-    logger.info("Running `%s`\nMaluuba: The warnings below are normal.", cmd)
+    logger.info("Running `%s`\nThe warnings below are normal.", cmd)
     exit_status = os.system(cmd)
     if exit_status:
         sys.exit(exit_status)

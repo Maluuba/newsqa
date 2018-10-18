@@ -4,6 +4,7 @@ dataset.csv
 *-data-*.csv
 *-data-*.gz
 *-data-*.gzip
+*-data-*.json
 *-data-*.tar
 *-data-*.tsv
 *-data-*.txt
