@@ -4,11 +4,10 @@ Tools for using Maluuba's news questions and answer data. The code in the repo i
 You can find more information with stats on the dataset [here][maluuba_newsqa].
 
 ## Data Description
-We originally only compiled to CSV but now we will support some other formats.
+We originally only compiled to CSV but now we also build a JSON file.
 
 ### JSON
-
-Example:
+Here is an example of how the data in `combined-newsqa-data-v1.json` will look:
 ```json
 {
     "data": [
