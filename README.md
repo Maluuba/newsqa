@@ -131,7 +131,7 @@ You now have the datasets.  See `combined-newsqa-data-*.json`, `combined-newsqa-
 #### Tokenize and Split
 If you want to tokenize and split the data into train, dev, and test, to match the paper run, then you must get "into" the container and run the packaging command:
 ```bash
-docker run --rm -it -v ${PWD}:/usr/src/newsqa --name newsqa maluuba/newsqa python maluuba/newsqa/data_generator.py
+docker run --rm -it -v ${PWD}:/usr/src/newsqa --name newsqa maluuba/newsqa /bin/bash --login -c 'python maluuba/newsqa/data_generator.py'
 ```
 The warnings from the tokenizer are normal.
 
