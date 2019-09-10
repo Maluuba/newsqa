@@ -172,8 +172,8 @@ All tests should pass.
 
 [conda]: https://conda.io/miniconda.html
 [cnn_stories]: http://cs.nyu.edu/~kcho/DMQA/
-[maluuba_newsqa]: https://datasets.maluuba.com/NewsQA
-[maluuba_newsqa_dl]: https://datasets.maluuba.com/NewsQA/dl
+[maluuba_newsqa]: https://www.microsoft.com/en-us/research/project/newsqa-dataset/#!stats
+[maluuba_newsqa_dl]: https://www.microsoft.com/en-us/research/project/newsqa-dataset/#!download
 [stanford_tagger]: http://nlp.stanford.edu/software/tagger.html
 [stanford_zip_3.6.0]: https://nlp.stanford.edu/software/stanford-postagger-2015-12-09.zip
 
