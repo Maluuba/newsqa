@@ -2,6 +2,7 @@
 cnn_stories.tgz
 dataset.csv
 *-data-*.csv
+newsqa.tar.gz
 *-data-*.gz
 *-data-*.gzip
 *-data-*.json
