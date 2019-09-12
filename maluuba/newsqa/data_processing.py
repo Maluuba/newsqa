@@ -60,8 +60,13 @@ class NewsQaDataset(object):
         if dataset_path is None:
             dataset_path = os.path.join(dirname, 'newsqa-data-v1.csv')
         if not os.path.exists(dataset_path):
-            zipped_dataset_path = os.path.join(os.path.dirname(dataset_path), 'newsqa-data-v1.tar.gz')
-            if os.path.exists(zipped_dataset_path):
+            zipped_dataset_paths = list(filter(os.path.exists,
+                [
+                    os.path.join(os.path.dirname(dataset_path), 'newsqa-data-v1.tar.gz'),
+                    os.path.join(os.path.dirname(dataset_path), 'newsqa.tar.gz'),
+                ]))
+            if len(zipped_dataset_paths) > 0:
+                zipped_dataset_path = zipped_dataset_paths[0]
                 self._logger.info("Will use zipped dataset at `%s`.", zipped_dataset_path)
                 with tarfile.open(zipped_dataset_path, mode='r:gz', encoding='utf-8') as t:
                     extraction_destination_path = os.path.dirname(dataset_path)
@@ -71,7 +76,7 @@ class NewsQaDataset(object):
                 raise Exception(
                     "`%s` was not found.\nFor legal reasons, you must first accept the terms "
                     "and download the dataset from "
-                    "https://datasets.maluuba.com/NewsQA/dl"
+                    "https://msropendata.com/datasets/939b1042-6402-4697-9c15-7a28de7e1321"
                     "\n See the README in the root of this repo for more details." % dataset_path)
 
         self.version = self._get_version(dataset_path)

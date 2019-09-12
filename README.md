@@ -118,7 +118,7 @@ The dataset for token based indices will be `maluuba/newsqa/newsqa-data-tokenize
 These steps handle packaging the dataset and running the tests.
 
 * Clone this repo.
-* Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder. No need to extract anything.
+* Download the tar.gz file for the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder. No need to extract anything.
 * Download the CNN stories from [here][cnn_stories] to the maluuba/newsqa folder (for legal and technical reasons, we can't distribute this to you).
 * In the root of this repo, run:
 ```bash
@@ -140,7 +140,7 @@ If you run into issues such as the tokenization not unpacking, then you may need
 
 ### Manual Set Up
 * Clone this repo.
-* Download the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder. No need to extract anything.
+* Download the tar.gz file for the questions and answers from [here][maluuba_newsqa_dl] to the maluuba/newsqa folder. No need to extract anything.
 * Download the CNN stories from [here][cnn_stories] to the maluuba/newsqa folder (for legal and technical reasons, we can't distribute this to you).
 * Use Python 2.7 to package the dataset (Python 2.7 was originally used to handle the stories and they got encoded strangely - once the dataset is packaged by these scripts, you should be able to load the files with whatever tools you'd like). You can create a [Conda][conda] environment like so:
 ```bash
@@ -173,7 +173,7 @@ All tests should pass.
 [conda]: https://conda.io/miniconda.html
 [cnn_stories]: http://cs.nyu.edu/~kcho/DMQA/
 [maluuba_newsqa]: https://www.microsoft.com/en-us/research/project/newsqa-dataset
-[maluuba_newsqa_dl]: https://www.microsoft.com/en-us/research/project/newsqa-dataset/#!download
+[maluuba_newsqa_dl]: https://msropendata.com/datasets/939b1042-6402-4697-9c15-7a28de7e1321
 [stanford_tagger]: http://nlp.stanford.edu/software/tagger.html
 [stanford_zip_3.6.0]: https://nlp.stanford.edu/software/stanford-postagger-2015-12-09.zip
 
